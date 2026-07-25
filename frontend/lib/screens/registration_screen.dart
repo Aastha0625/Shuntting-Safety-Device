@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../services/api_service.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({Key? key}) : super(key: key);
@@ -9,7 +10,13 @@ class RegistrationScreen extends StatefulWidget {
 }
 
 class _RegistrationScreenState extends State<RegistrationScreen> {
+  final _fullNameController = TextEditingController();
+  final _employeeIdController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  
   bool _obscurePassword = true;
+  bool _isLoading = false;
   String? _selectedDesignation;
 
   final List<String> _designations = [
@@ -19,6 +26,62 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     'Yard Master',
     'Admin'
   ];
+
+  @override
+  void dispose() {
+    _fullNameController.dispose();
+    _employeeIdController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleRegister() async {
+    final fullName = _fullNameController.text.trim();
+    final employeeId = _employeeIdController.text.trim();
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+
+    if (fullName.isEmpty || employeeId.isEmpty || password.isEmpty || _selectedDesignation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields')),
+      );
+      return;
+    }
+
+    if (password != confirmPassword) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Passwords do not match')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final result = await ApiService.registerUser(
+      fullName: fullName,
+      employeeId: employeeId,
+      designation: _selectedDesignation!,
+      password: password,
+    );
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (result['success']) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Registration Successful! Please login.'), backgroundColor: Colors.green),
+      );
+      Navigator.pop(context); // Go back to login screen
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,8 +130,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             // Form Fields
             const Text('Full Name', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.subtitleColor)),
             const SizedBox(height: 8),
-            const TextField(
-              decoration: InputDecoration(
+            TextField(
+              controller: _fullNameController,
+              decoration: const InputDecoration(
                 hintText: 'John Doe',
               ),
             ),
@@ -76,8 +140,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             
             const Text('Employee ID', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.subtitleColor)),
             const SizedBox(height: 8),
-            const TextField(
-              decoration: InputDecoration(
+            TextField(
+              controller: _employeeIdController,
+              decoration: const InputDecoration(
                 hintText: 'RS-10294',
               ),
             ),
@@ -108,6 +173,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             const Text('Password', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.subtitleColor)),
             const SizedBox(height: 8),
             TextField(
+              controller: _passwordController,
               obscureText: _obscurePassword,
               decoration: InputDecoration(
                 hintText: '••••••••',
@@ -125,21 +191,36 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             
             const Text('Confirm Password', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.subtitleColor)),
             const SizedBox(height: 8),
-            const TextField(
+            TextField(
+              controller: _confirmPasswordController,
               obscureText: true,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 hintText: '••••••••',
               ),
             ),
             const SizedBox(height: 24),
-          
+            
+            // Terms
+            RichText(
+              textAlign: TextAlign.center,
+              text: const TextSpan(
+                style: TextStyle(color: AppTheme.subtitleColor, fontSize: 12),
+                children: [
+                  TextSpan(text: 'By registering, you agree to our '),
+                  TextSpan(text: 'Safety Protocols', style: TextStyle(fontWeight: FontWeight.bold, decoration: TextDecoration.underline, color: AppTheme.primaryColor)),
+                  TextSpan(text: ' and '),
+                  TextSpan(text: 'Data Privacy Policy', style: TextStyle(fontWeight: FontWeight.bold, decoration: TextDecoration.underline, color: AppTheme.primaryColor)),
+                  TextSpan(text: '.'),
+                ],
+              ),
+            ),
             const SizedBox(height: 24),
             
             ElevatedButton(
-              onPressed: () {
-                // Register action
-              },
-              child: const Text('Register'),
+              onPressed: _isLoading ? null : _handleRegister,
+              child: _isLoading
+                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Text('Register'),
             ),
             const SizedBox(height: 24),
             

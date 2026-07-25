@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../services/api_service.dart';
 import 'registration_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -10,7 +11,54 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _employeeIdController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _employeeIdController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleLogin() async {
+    final employeeId = _employeeIdController.text.trim();
+    final password = _passwordController.text;
+
+    if (employeeId.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final result = await ApiService.loginUser(
+      employeeId: employeeId,
+      password: password,
+    );
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (result['success']) {
+      // In the future, save the token and navigate to Dashboard
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Login Successful!'), backgroundColor: Colors.green),
+      );
+      // Example: String token = result['data']['token'];
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
           children: const [
             Icon(Icons.directions_railway, color: AppTheme.primaryColor),
             SizedBox(width: 8),
-            Text('Railway Safety'),
+            Text('SafeShunt'),
           ],
         ),
         bottom: PreferredSize(
@@ -69,6 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Text('Employee ID / Username', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.subtitleColor)),
                   const SizedBox(height: 8),
                   TextField(
+                    controller: _employeeIdController,
                     decoration: const InputDecoration(
                       hintText: 'Enter your ID',
                       prefixIcon: Icon(Icons.badge_outlined),
@@ -78,6 +127,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Text('Password', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.subtitleColor)),
                   const SizedBox(height: 8),
                   TextField(
+                    controller: _passwordController,
                     obscureText: _obscurePassword,
                     decoration: InputDecoration(
                       hintText: '••••••••',
@@ -94,10 +144,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: () {
-                      // Login action
-                    },
-                    child: const Text('LOGIN'),
+                    onPressed: _isLoading ? null : _handleLogin,
+                    child: _isLoading 
+                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('LOGIN'),
                   ),
                   const SizedBox(height: 16),
                   Center(
