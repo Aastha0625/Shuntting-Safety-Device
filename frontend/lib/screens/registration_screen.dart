@@ -20,11 +20,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   String? _selectedDesignation;
 
   final List<String> _designations = [
-    'Loco Pilot',
-    'Shunter',
-    'Pointsman',
-    'Yard Master',
-    'Admin'
+    'Super Administrator',
+    'Yard Administrator',
+    'Maintenance User',
+    'Viewer / Control Room User'
   ];
 
   @override
