@@ -12,7 +12,7 @@ const generateToken = (userId, employeeId) => {
 };
 
 exports.register = async (req, res) => {
-  const { fullName, employeeId, designation, password } = req.body;
+  const { fullName, employeeId, email, designation, password } = req.body;
 
   try {
     // 1. Check if user already exists
@@ -27,8 +27,8 @@ exports.register = async (req, res) => {
 
     // 3. Insert user into DB
     const newUser = await db.query(
-      'INSERT INTO users (full_name, employee_id, designation, password_hash) VALUES ($1, $2, $3, $4) RETURNING id, full_name, employee_id, designation',
-      [fullName, employeeId, designation, passwordHash]
+      'INSERT INTO users (full_name, employee_id, email, designation, password_hash) VALUES ($1, $2, $3, $4, $5) RETURNING id, full_name, employee_id, email, designation',
+      [fullName, employeeId, email, designation, passwordHash]
     );
 
     const user = newUser.rows[0];
@@ -40,6 +40,7 @@ exports.register = async (req, res) => {
         id: user.id,
         fullName: user.full_name,
         employeeId: user.employee_id,
+        email: user.email,
         designation: user.designation,
       },
       token: generateToken(user.id, user.employee_id)
@@ -52,11 +53,11 @@ exports.register = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
-  const { employeeId, password } = req.body;
+  const { loginId, password } = req.body;
 
   try {
-    // 1. Find user by employee ID
-    const userResult = await db.query('SELECT * FROM users WHERE employee_id = $1', [employeeId]);
+    // 1. Find user by employee ID or Email
+    const userResult = await db.query('SELECT * FROM users WHERE employee_id = $1 OR email = $1', [loginId]);
     
     if (userResult.rows.length === 0) {
       return res.status(400).json({ message: 'Invalid credentials' });
@@ -77,6 +78,7 @@ exports.login = async (req, res) => {
         id: user.id,
         fullName: user.full_name,
         employeeId: user.employee_id,
+        email: user.email,
         designation: user.designation,
       },
       token: generateToken(user.id, user.employee_id)

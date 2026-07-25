@@ -8,6 +8,7 @@ class ApiService {
   static Future<Map<String, dynamic>> registerUser({
     required String fullName,
     required String employeeId,
+    required String email,
     required String designation,
     required String password,
   }) async {
@@ -18,6 +19,7 @@ class ApiService {
         body: jsonEncode({
           'fullName': fullName,
           'employeeId': employeeId,
+          'email': email,
           'designation': designation,
           'password': password,
         }),
@@ -36,7 +38,7 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> loginUser({
-    required String employeeId,
+    required String loginId,
     required String password,
   }) async {
     try {
@@ -44,7 +46,7 @@ class ApiService {
         Uri.parse('$baseUrl/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'employeeId': employeeId,
+          'loginId': loginId,
           'password': password,
         }),
       );

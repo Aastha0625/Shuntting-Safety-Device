@@ -12,6 +12,7 @@ class RegistrationScreen extends StatefulWidget {
 class _RegistrationScreenState extends State<RegistrationScreen> {
   final _fullNameController = TextEditingController();
   final _employeeIdController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   
@@ -30,6 +31,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   void dispose() {
     _fullNameController.dispose();
     _employeeIdController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -38,10 +40,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   Future<void> _handleRegister() async {
     final fullName = _fullNameController.text.trim();
     final employeeId = _employeeIdController.text.trim();
+    final email = _emailController.text.trim();
     final password = _passwordController.text;
     final confirmPassword = _confirmPasswordController.text;
 
-    if (fullName.isEmpty || employeeId.isEmpty || password.isEmpty || _selectedDesignation == null) {
+    if (fullName.isEmpty || employeeId.isEmpty || email.isEmpty || password.isEmpty || _selectedDesignation == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in all fields')),
       );
@@ -62,6 +65,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     final result = await ApiService.registerUser(
       fullName: fullName,
       employeeId: employeeId,
+      email: email,
       designation: _selectedDesignation!,
       password: password,
     );
@@ -143,6 +147,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               controller: _employeeIdController,
               decoration: const InputDecoration(
                 hintText: 'RS-10294',
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            const Text('Email Address', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.subtitleColor)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _emailController,
+              decoration: const InputDecoration(
+                hintText: 'name@railway.gov',
               ),
             ),
             const SizedBox(height: 16),

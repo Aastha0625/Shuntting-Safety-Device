@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
 import 'registration_screen.dart';
+import 'main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -39,7 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     final result = await ApiService.loginUser(
-      employeeId: employeeId,
+      loginId: employeeId,
       password: password,
     );
 
@@ -48,11 +49,13 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     if (result['success']) {
-      // In the future, save the token and navigate to Dashboard
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Login Successful!'), backgroundColor: Colors.green),
       );
-      // Example: String token = result['data']['token'];
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainScreen()),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
@@ -114,12 +117,12 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Employee ID / Username', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.subtitleColor)),
+                  const Text('Employee ID / Email', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.subtitleColor)),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _employeeIdController,
                     decoration: const InputDecoration(
-                      hintText: 'Enter your ID',
+                      hintText: 'EMP-001 or name@email.com',
                       prefixIcon: Icon(Icons.badge_outlined),
                     ),
                   ),
