@@ -20,17 +20,19 @@ class _DEAssignmentScreenState extends State<DEAssignmentScreen> {
   }
 
   Future<void> _fetchAssignments() async {
-    setState(() => _isLoading = true);
     await Future.delayed(const Duration(milliseconds: 600));
 
-    _assignments = [
-      {'yard': 'North Yard', 'line': 'Pit Line 1', 'device': 'DE-042', 'status': 'Online', 'lastPing': '2m ago'},
-      {'yard': 'North Yard', 'line': 'Stabling Line 2', 'device': 'DE-088', 'status': 'Offline', 'lastPing': '1h 30m ago'},
-      {'yard': 'South Yard', 'line': 'Washing Line A', 'device': 'None', 'status': 'Unassigned', 'lastPing': '-'},
-      {'yard': 'South Yard', 'line': 'Main Shunt Line', 'device': 'DE-019', 'status': 'Online', 'lastPing': 'Just now'},
-    ];
+    if (!mounted) return;
 
-    if (mounted) setState(() => _isLoading = false);
+    setState(() {
+      _assignments = [
+        {'yard': 'North Yard', 'line': 'Pit Line 1', 'device': 'DE-042', 'status': 'Online', 'lastPing': '2m ago'},
+        {'yard': 'North Yard', 'line': 'Stabling Line 2', 'device': 'DE-088', 'status': 'Offline', 'lastPing': '1h 30m ago'},
+        {'yard': 'South Yard', 'line': 'Washing Line A', 'device': 'None', 'status': 'Unassigned', 'lastPing': '-'},
+        {'yard': 'South Yard', 'line': 'Main Shunt Line', 'device': 'DE-019', 'status': 'Online', 'lastPing': 'Just now'},
+      ];
+      _isLoading = false;
+    });
   }
 
   @override
@@ -54,7 +56,7 @@ class _DEAssignmentScreenState extends State<DEAssignmentScreen> {
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
         ),
         elevation: 4,
-        shadowColor: Colors.black.withOpacity(0.5),
+        shadowColor: Colors.black54, // Safe constant color, avoiding withOpacity
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -67,9 +69,20 @@ class _DEAssignmentScreenState extends State<DEAssignmentScreen> {
       padding: const EdgeInsets.all(16.0),
       itemCount: _assignments.length,
       itemBuilder: (context, index) {
-        final item = _assignments[index];
-        final bool isAssigned = item['device'] != 'None';
-        final bool isOnline = item['status'] == 'Online';
+        final Map<String, dynamic> item = _assignments[index];
+        final String yard = item['yard'] ?? 'Unknown';
+        final String line = item['line'] ?? 'Unknown';
+        final String device = item['device'] ?? 'None';
+        final String status = item['status'] ?? 'Unknown';
+        final String lastPing = item['lastPing'] ?? '-';
+        
+        final bool isAssigned = device != 'None';
+        final bool isOnline = status == 'Online';
+
+        Color badgeBgColor = Colors.grey;
+        if (isAssigned) {
+          badgeBgColor = isOnline ? Colors.green : Colors.red;
+        }
 
         return Card(
           margin: const EdgeInsets.only(bottom: 12.0),
@@ -83,23 +96,19 @@ class _DEAssignmentScreenState extends State<DEAssignmentScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('${item['yard']} • ${item['line']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.primaryColor)),
+                    Text('$yard • $line', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.primaryColor)),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: isAssigned 
-                            ? (isOnline ? Colors.green.shade100 : Colors.red.shade100)
-                            : Colors.grey.shade200,
+                        color: badgeBgColor,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        item['status'],
-                        style: TextStyle(
+                        status,
+                        style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
-                          color: isAssigned 
-                              ? (isOnline ? Colors.green.shade700 : Colors.red.shade700)
-                              : Colors.grey.shade700,
+                          color: Colors.white,
                         ),
                       ),
                     ),
@@ -108,10 +117,9 @@ class _DEAssignmentScreenState extends State<DEAssignmentScreen> {
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    const Icon(Icons.router, color: AppTheme.subtitleColor, size: 20),
                     const SizedBox(width: 8),
                     Text(
-                      isAssigned ? 'Assigned: ${item['device']}' : 'No device assigned',
+                      isAssigned ? 'Assigned: $device' : 'No device assigned',
                       style: TextStyle(
                         fontSize: 14,
                         color: isAssigned ? AppTheme.primaryColor : AppTheme.subtitleColor,
@@ -120,32 +128,34 @@ class _DEAssignmentScreenState extends State<DEAssignmentScreen> {
                     ),
                   ],
                 ),
-                if (isAssigned) ...[
-                  const SizedBox(height: 4),
+                if (isAssigned)
                   Padding(
-                    padding: const EdgeInsets.only(left: 28.0),
-                    child: Text('Last Heartbeat: ${item['lastPing']}', style: const TextStyle(fontSize: 12, color: AppTheme.subtitleColor)),
+                    padding: const EdgeInsets.only(left: 28.0, top: 4.0),
+                    child: Text('Last Heartbeat: $lastPing', style: const TextStyle(fontSize: 12, color: AppTheme.subtitleColor)),
                   ),
-                ],
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     if (isAssigned)
-                      TextButton.icon(
-                        onPressed: () => _handleUnassign(item),
-                        icon: const Icon(Icons.link_off, color: Colors.redAccent, size: 18),
-                        label: const Text('UNASSIGN', style: TextStyle(color: Colors.redAccent)),
+                      InkWell(
+                        onTap: () => _handleUnassign(item),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: const Text('UNASSIGN', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                        ),
                       ),
-                    const SizedBox(width: 8),
-                    ElevatedButton.icon(
-                      onPressed: () => _showAssignForm(item),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    const SizedBox(width: 16),
+                    InkWell(
+                      onTap: () => _showAssignForm(item),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(isAssigned ? 'REPLACE' : 'ASSIGN', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       ),
-                      icon: Icon(isAssigned ? Icons.swap_horiz : Icons.add_link, color: Colors.white, size: 18),
-                      label: Text(isAssigned ? 'REPLACE' : 'ASSIGN', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),
@@ -162,7 +172,7 @@ class _DEAssignmentScreenState extends State<DEAssignmentScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Remove Assignment?'),
-        content: Text('Are you sure you want to unassign ${item['device']} from ${item['line']}?'),
+        content: Text('Are you sure you want to unassign ${item['device'] ?? ''} from ${item['line'] ?? ''}?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
           TextButton(
@@ -178,6 +188,8 @@ class _DEAssignmentScreenState extends State<DEAssignmentScreen> {
   }
 
   void _showAssignForm(Map<String, dynamic> item) {
+    final String lineName = item['line']?.toString() ?? 'Unknown Line';
+    
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -193,7 +205,7 @@ class _DEAssignmentScreenState extends State<DEAssignmentScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Assign Device to ${item['line']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+                  Text('Assign Device to $lineName', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
                   IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
                 ],
               ),
@@ -208,10 +220,12 @@ class _DEAssignmentScreenState extends State<DEAssignmentScreen> {
                   child: DropdownButton<String>(
                     isExpanded: true,
                     value: 'DE-101 (Available)',
-                    items: ['DE-101 (Available)', 'DE-105 (Available)', 'DE-209 (Available)']
-                        .map((String value) => DropdownMenuItem<String>(value: value, child: Text(value)))
-                        .toList(),
-                    onChanged: (_) {},
+                    items: const [
+                      DropdownMenuItem<String>(value: 'DE-101 (Available)', child: Text('DE-101 (Available)')),
+                      DropdownMenuItem<String>(value: 'DE-105 (Available)', child: Text('DE-105 (Available)')),
+                      DropdownMenuItem<String>(value: 'DE-209 (Available)', child: Text('DE-209 (Available)')),
+                    ],
+                    onChanged: (String? value) {},
                   ),
                 ),
               ),
@@ -221,10 +235,10 @@ class _DEAssignmentScreenState extends State<DEAssignmentScreen> {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Device Assigned to ${item['line']}!')));
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Device Assigned to $lineName!')));
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
+                    backgroundColor: AppTheme.primaryColor,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),

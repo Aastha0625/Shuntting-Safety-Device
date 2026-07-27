@@ -120,13 +120,16 @@ class _IssueReturnScreenState extends State<IssueReturnScreen> {
                     ],
                   ),
                 ),
-                ElevatedButton(
-                  onPressed: () => _showIssueForm(device['code'], device['type']),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                InkWell(
+                  onTap: () => _showIssueForm(device['code'], device['type']),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.blueAccent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text('ISSUE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
-                  child: const Text('ISSUE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
@@ -179,13 +182,17 @@ class _IssueReturnScreenState extends State<IssueReturnScreen> {
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () => _showReturnForm(device['code'], device['employee']),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppTheme.primaryColor),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  child: InkWell(
+                    onTap: () => _showReturnForm(device['code'], device['employee']),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppTheme.primaryColor),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text('RETURN DEVICE', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
                     ),
-                    child: const Text('RETURN DEVICE', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
