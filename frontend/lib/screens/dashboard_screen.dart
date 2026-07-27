@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_drawer.dart';
 import 'login_screen.dart';
+import 'dart:math' as math;
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -9,6 +11,7 @@ class DashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
+      drawer: const AppDrawer(),
       appBar: AppBar(
         flexibleSpace: Container(
           decoration: const BoxDecoration(
@@ -24,15 +27,17 @@ class DashboardScreen extends StatelessWidget {
         ),
         elevation: 8,
         shadowColor: Colors.black.withOpacity(0.5),
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () {},
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Colors.white),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
         ),
-        title: const Text('Dashboard', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: const Text('Live Operations', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.white),
+            icon: const Icon(Icons.notifications_active, color: Colors.redAccent),
             onPressed: () {},
           ),
           PopupMenuButton<String>(
@@ -66,40 +71,14 @@ class DashboardScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 16),
-            _buildSectionTitle('AT A GLANCE'),
-            _buildAtAGlanceSection(),
+            const SizedBox(height: 20),
+            _buildCriticalAlertsBanner(),
             const SizedBox(height: 24),
-            _buildSectionTitle('YARD SUMMARY'),
-            _buildYardSummaryCard(
-              yardName: 'North Yard',
-              subtitle: 'Central Operations Hub',
-              isActive: true,
-              totalLines: 12,
-              deDevices: 10,
-              deHealthy: 9,
-              deOffline: 1,
-              portables: 4,
-              activeSessions: 2,
-              alertCount: 1,
-            ),
-            const SizedBox(height: 16),
-            _buildYardSummaryCard(
-              yardName: 'South Yard',
-              subtitle: 'Maintenance & Storage',
-              isActive: false,
-              totalLines: 0, // Not displayed in simple inactive view
-              deDevices: 0,
-              deHealthy: 0,
-              deOffline: 0,
-              portables: 0,
-              activeSessions: 0,
-              alertCount: 0,
-            ),
-            const SizedBox(height: 24),
-            _buildSectionTitle('ACTIVE SESSIONS'),
-            _buildActiveSessionCard(),
-            _buildSimpleActiveSessionCard(),
+            _buildSectionTitle('LIVE ACTIVE SESSIONS', Icons.radar),
+            _buildLiveSessionsCarousel(),
+            const SizedBox(height: 32),
+            _buildSectionTitle('YARD HEALTH SUMMARY', Icons.health_and_safety_outlined),
+            _buildHealthSummaryGrid(),
             const SizedBox(height: 32),
           ],
         ),
@@ -107,440 +86,307 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, IconData icon) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 1.2,
-          color: AppTheme.subtitleColor,
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppTheme.subtitleColor),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+              color: AppTheme.subtitleColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCriticalAlertsBanner() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16.0),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.shade200),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {},
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade100,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '1 Critical Alert',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Device DE-042 missed heartbeat (30m+ offline)',
+                        style: TextStyle(
+                          color: Colors.red.shade700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: Colors.red),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildAtAGlanceSection() {
+  Widget _buildLiveSessionsCarousel() {
     return SizedBox(
-      height: 105,
+      height: 180,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         children: [
-          _buildStatCard('Total Yards', '3', Icons.factory_outlined),
-          _buildStatCard('Reg. Devices', '42', Icons.memory_outlined),
-          _buildStatCard('Dead-End', '38', Icons.vertical_align_bottom_outlined),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(String title, String value, IconData icon) {
-    return Container(
-      width: 130,
-      margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderColor),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
+          _buildLiveGlowingCard(
+            yard: 'North Yard',
+            line: 'Line 4',
+            ldDevice: 'LD-001',
+            deDevice: 'DE-012',
+            distance: '1.2m',
+            isClosing: true,
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            decoration: const BoxDecoration(
-              color: Colors.teal,
-              borderRadius: BorderRadius.only(topLeft: Radius.circular(12), bottomLeft: Radius.circular(12)),
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(title, style: const TextStyle(fontSize: 12, color: AppTheme.subtitleColor)),
-                  const SizedBox(height: 8),
-                  Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
-                ],
-              ),
-            ),
+          _buildLiveGlowingCard(
+            yard: 'South Yard',
+            line: 'Line 2',
+            ldDevice: 'LD-014',
+            deDevice: 'DE-008',
+            distance: '24.5m',
+            isClosing: false,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildYardSummaryCard({
-    required String yardName,
-    required String subtitle,
-    required bool isActive,
-    required int totalLines,
-    required int deDevices,
-    required int deHealthy,
-    required int deOffline,
-    required int portables,
-    required int activeSessions,
-    required int alertCount,
+  Widget _buildLiveGlowingCard({
+    required String yard,
+    required String line,
+    required String ldDevice,
+    required String deDevice,
+    required String distance,
+    required bool isClosing,
   }) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20.0),
+      width: 280,
+      margin: const EdgeInsets.only(right: 16.0, bottom: 8.0),
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isClosing ? Colors.greenAccent.withOpacity(0.5) : Colors.blueAccent.withOpacity(0.3),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isClosing ? Colors.greenAccent.withOpacity(0.2) : Colors.blueAccent.withOpacity(0.1),
+            blurRadius: 15,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: -20,
+            right: -20,
+            child: Icon(
+              Icons.radar,
+              size: 100,
+              color: Colors.white.withOpacity(0.03),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '$yard • $line',
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Colors.greenAccent,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Text('LIVE', style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Pairing', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                        const SizedBox(height: 4),
+                        Text(
+                          '$ldDevice ↔ $deDevice',
+                          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          isClosing ? 'Closing In' : 'Approaching',
+                          style: TextStyle(
+                            color: isClosing ? Colors.greenAccent : Colors.blueAccent,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          distance,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHealthSummaryGrid() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: GridView.count(
+        crossAxisCount: 2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 1.3,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        children: [
+          _buildHealthCard('Total Active\nDevices', '42', Icons.memory, Colors.blue),
+          _buildHealthCard('Devices\nOffline', '2', Icons.wifi_off, Colors.red),
+          _buildHealthCard('Total Sessions\nToday', '18', Icons.history, Colors.purple),
+          _buildHealthCard('System\nStatus', '98%', Icons.check_circle_outline, Colors.green),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHealthCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppTheme.borderColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.02),
             blurRadius: 10,
-            offset: const Offset(0, 2),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Row(
-        children: [
-          // Teal left border indicator
-          Container(
-            width: 4,
-            height: isActive ? 220 : 100,
-            decoration: const BoxDecoration(
-              color: Colors.teal,
-              borderRadius: BorderRadius.only(topLeft: Radius.circular(12), bottomLeft: Radius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppTheme.subtitleColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    height: 1.2,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: color, size: 20),
+                ),
+              ],
             ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(yardName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
-                          Text(subtitle, style: const TextStyle(fontSize: 12, color: AppTheme.subtitleColor)),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isActive ? Colors.teal.withOpacity(0.2) : Colors.grey.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          isActive ? 'Safe State' : 'Inactive',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isActive ? Colors.teal[700] : Colors.grey[700],
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (isActive) ...[
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(child: _buildGridStat('Total Lines', totalLines.toString())),
-                        Expanded(child: _buildGridStat('DE Devices', deDevices.toString())),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(child: _buildGridStat('DE Healthy', deHealthy.toString(), valueColor: Colors.teal)),
-                        Expanded(child: _buildGridStat('DE Offline', deOffline.toString(), valueColor: Colors.red)),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(child: _buildGridStat('Portables', portables.toString())),
-                        Expanded(child: _buildGridStat('Active Sessions', activeSessions.toString())),
-                      ],
-                    ),
-                    if (alertCount > 0) ...[
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 16),
-                          const SizedBox(width: 8),
-                          Text(
-                            '$alertCount Open Alert requires attention',
-                            style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ],
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isActive ? AppTheme.primaryColor : Colors.white,
-                        foregroundColor: isActive ? Colors.white : AppTheme.primaryColor,
-                        side: isActive ? null : const BorderSide(color: AppTheme.borderColor),
-                        elevation: 0,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('VIEW YARD', style: TextStyle(fontWeight: isActive ? FontWeight.w600 : FontWeight.normal)),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.chevron_right, size: 18),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+            Text(
+              value,
+              style: TextStyle(
+                color: AppTheme.primaryColor,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGridStat(String label, String value, {Color? valueColor}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: const TextStyle(color: AppTheme.subtitleColor, fontSize: 13)),
-        Padding(
-          padding: const EdgeInsets.only(right: 16.0),
-          child: Text(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: valueColor ?? AppTheme.primaryColor,
-            ),
-          ),
+          ],
         ),
-      ],
-    );
-  }
-
-  Widget _buildActiveSessionCard() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20.0),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderColor),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: 250,
-            decoration: const BoxDecoration(
-              color: Colors.teal,
-              borderRadius: BorderRadius.only(topLeft: Radius.circular(12), bottomLeft: Radius.circular(12)),
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('#S-1042', style: TextStyle(color: AppTheme.subtitleColor, fontSize: 12)),
-                          const Text('LTT Yard', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.teal.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: const BoxDecoration(color: Colors.teal, shape: BoxShape.circle),
-                            ),
-                            const SizedBox(width: 4),
-                            const Text('Active', style: TextStyle(color: Colors.teal, fontSize: 12, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 16,
-                        backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                        child: const Icon(Icons.person, size: 18, color: AppTheme.primaryColor),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text('John Doe', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.primaryColor)),
-                          Text('ID: RS-10294', style: TextStyle(fontSize: 11, color: AppTheme.subtitleColor)),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text('LOCO ID', style: TextStyle(fontSize: 10, color: AppTheme.subtitleColor)),
-                            Text('LOCO-01', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text('LINE', style: TextStyle(fontSize: 10, color: AppTheme.subtitleColor)),
-                            Text('Line 4', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text('DE CODE', style: TextStyle(fontSize: 10, color: AppTheme.subtitleColor)),
-                            Text('DE-05', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text('DISTANCE', style: TextStyle(fontSize: 10, color: AppTheme.subtitleColor)),
-                            Text('42m', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal, fontSize: 16)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Row(
-                        children: [
-                          Icon(Icons.access_time, size: 12, color: AppTheme.subtitleColor),
-                          SizedBox(width: 4),
-                          Text('Started 08:30 AM', style: TextStyle(fontSize: 11, color: AppTheme.subtitleColor)),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          Icon(Icons.history, size: 12, color: AppTheme.subtitleColor),
-                          SizedBox(width: 4),
-                          Text('Last data: 2 mins ago', style: TextStyle(fontSize: 11, color: AppTheme.subtitleColor)),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(Icons.visibility_outlined, size: 18),
-                          SizedBox(width: 8),
-                          Text('VIEW LIVE'),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSimpleActiveSessionCard() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderColor),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: 60,
-            decoration: const BoxDecoration(
-              color: Colors.teal,
-              borderRadius: BorderRadius.only(topLeft: Radius.circular(12), bottomLeft: Radius.circular(12)),
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text('#S-1045', style: TextStyle(color: AppTheme.subtitleColor, fontSize: 12)),
-                      Text('North Yard • Line 2', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
-                    ],
-                  ),
-                  const Icon(Icons.open_in_new, color: AppTheme.primaryColor, size: 20),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_drawer.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({Key? key}) : super(key: key);
@@ -29,6 +32,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
+      drawer: const AppDrawer(),
       appBar: AppBar(
         flexibleSpace: Container(
           decoration: const BoxDecoration(
@@ -44,21 +48,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ),
         elevation: 8,
         shadowColor: Colors.black.withOpacity(0.5),
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () {},
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Colors.white),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
         ),
         title: const Text(
           'Reports & Audits',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list, color: Colors.white),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -189,6 +189,32 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
+  Map<String, String> _getDateRange() {
+    final now = DateTime.now();
+    DateTime fromDate;
+    
+    switch (_selectedTime) {
+      case 'Daily':
+        fromDate = now;
+        break;
+      case 'Weekly':
+        fromDate = now.subtract(const Duration(days: 7));
+        break;
+      case 'Monthly':
+        fromDate = now.subtract(const Duration(days: 30));
+        break;
+      case 'Custom':
+      default:
+        fromDate = DateTime(2026, 7, 1);
+    }
+    
+    String format(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    return {
+      'from': format(fromDate),
+      'to': format(now),
+    };
+  }
+
   Widget _buildFilterPanel() {
     List<Widget> activeFilters = [];
     
@@ -228,15 +254,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
       dynamicRows.add(const SizedBox(height: 16));
     }
 
+    final dates = _getDateRange();
+
     return Container(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppTheme.borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withOpacity(0.02),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -263,9 +291,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _buildFilterInput('From Date', '2026-07-01')),
+              Expanded(child: _buildFilterInput('From Date', dates['from']!)),
               const SizedBox(width: 16),
-              Expanded(child: _buildFilterInput('To Date', '2026-07-25')),
+              Expanded(child: _buildFilterInput('To Date', dates['to']!)),
             ],
           ),
           const SizedBox(height: 16),
@@ -322,13 +350,47 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
+  Future<void> _downloadReport(String format) async {
+    try {
+      final dates = _getDateRange();
+      final filters = {
+        'Date Range': '${dates['from']} to ${dates['to']}',
+        'Yard': 'All Yards'
+      };
+      
+      final queryParams = {
+        'reportType': _selectedReportType,
+        'filters': jsonEncode(filters),
+      };
+      
+      // Use 10.0.2.2 for Android emulator, or localhost for Windows/Web
+      final uri = Uri.http('localhost:5000', '/api/reports/generate/$format', queryParams);
+      
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not launch $format download. Make sure backend is running.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error downloading $format: $e')),
+        );
+      }
+    }
+  }
+
   Widget _buildActionBar() {
     return Row(
       children: [
         Expanded(
           flex: 2,
           child: ElevatedButton.icon(
-            onPressed: () {},
+            onPressed: () => _downloadReport('excel'),
             icon: const Icon(Icons.table_chart, color: Colors.greenAccent, size: 18),
             label: const Text('Excel', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             style: ElevatedButton.styleFrom(
@@ -342,7 +404,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         Expanded(
           flex: 2,
           child: ElevatedButton.icon(
-            onPressed: () {},
+            onPressed: () => _downloadReport('pdf'),
             icon: const Icon(Icons.picture_as_pdf, color: Colors.redAccent, size: 18),
             label: const Text('PDF', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             style: ElevatedButton.styleFrom(

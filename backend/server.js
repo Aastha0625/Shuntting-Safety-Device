@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const authRoutes = require('./routes/authRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 
 const app = express();
 
@@ -12,6 +13,7 @@ app.use(express.json()); // Allows parsing of JSON request bodies
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Base route for testing
 app.get('/', (req, res) => {
