@@ -4,7 +4,7 @@ import '../services/api_service.dart';
 import '../services/user_session.dart';
 
 class UserManagementScreen extends StatefulWidget {
-  const UserManagementScreen({Key? key}) : super(key: key);
+  const UserManagementScreen({super.key});
 
   @override
   _UserManagementScreenState createState() => _UserManagementScreenState();
@@ -122,7 +122,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       hintText: 'Select yard',
                       border: OutlineInputBorder(),
                     ),
-                    value: selectedYardId,
+                    initialValue: selectedYardId,
                     items: availableYards.map((y) {
                       return DropdownMenuItem<String>(
                         value: y['id']?.toString(),
@@ -219,7 +219,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
         ),
         elevation: 8,
-        shadowColor: Colors.black.withOpacity(0.5),
+        shadowColor: Colors.black.withValues(alpha: 0.5),
         title: const Text('User Management', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -270,7 +270,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         border: Border.all(color: isActive ? AppTheme.borderColor : Colors.red.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -285,7 +285,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               children: [
                 CircleAvatar(
                   radius: 22,
-                  backgroundColor: _getRoleColor(role).withOpacity(0.15),
+                  backgroundColor: _getRoleColor(role).withValues(alpha: 0.15),
                   child: Text(
                     (user['fullName'] ?? 'U')[0].toUpperCase(),
                     style: TextStyle(
@@ -405,9 +405,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         return Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF2563EB).withOpacity(0.1),
+                            color: const Color(0xFF2563EB).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: const Color(0xFF2563EB).withOpacity(0.3)),
+                            border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.3)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,

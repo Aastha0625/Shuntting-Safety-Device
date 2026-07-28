@@ -3,7 +3,7 @@ import '../theme/app_theme.dart';
 import '../widgets/app_drawer.dart';
 
 class YardSetupScreen extends StatefulWidget {
-  const YardSetupScreen({Key? key}) : super(key: key);
+  const YardSetupScreen({super.key});
 
   @override
   State<YardSetupScreen> createState() => _YardSetupScreenState();
@@ -71,7 +71,7 @@ class _YardSetupScreenState extends State<YardSetupScreen> {
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
         ),
         elevation: 4,
-        shadowColor: Colors.black.withOpacity(0.5),
+        shadowColor: Colors.black.withValues(alpha: 0.5),
       ),
       body: _isLoading 
           ? const Center(child: CircularProgressIndicator())
@@ -134,7 +134,7 @@ class _YardSetupScreenState extends State<YardSetupScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    ...lines.map((line) => _buildLineItem(line)).toList(),
+                    ...lines.map((line) => _buildLineItem(line)),
                     if (lines.isEmpty)
                       const Padding(
                         padding: EdgeInsets.all(16.0),
@@ -163,7 +163,7 @@ class _YardSetupScreenState extends State<YardSetupScreen> {
         border: Border.all(color: AppTheme.borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),

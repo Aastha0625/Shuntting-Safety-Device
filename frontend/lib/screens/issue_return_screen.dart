@@ -3,7 +3,7 @@ import '../theme/app_theme.dart';
 import '../widgets/app_drawer.dart';
 
 class IssueReturnScreen extends StatefulWidget {
-  const IssueReturnScreen({Key? key}) : super(key: key);
+  const IssueReturnScreen({super.key});
 
   @override
   State<IssueReturnScreen> createState() => _IssueReturnScreenState();

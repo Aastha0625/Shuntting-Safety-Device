@@ -6,7 +6,7 @@ import 'login_screen.dart';
 import 'dart:math' as math;
 
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({Key? key}) : super(key: key);
+  const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +27,7 @@ class DashboardScreen extends StatelessWidget {
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
         ),
         elevation: 8,
-        shadowColor: Colors.black.withOpacity(0.5),
+        shadowColor: Colors.black.withValues(alpha: 0.5),
         leading: Builder(
           builder: (context) => IconButton(
             icon: const Icon(Icons.menu, color: Colors.white),
@@ -172,9 +172,9 @@ class DashboardScreen extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFFDC2626).withOpacity(0.1),
+          color: const Color(0xFFDC2626).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFDC2626).withOpacity(0.3)),
+          border: Border.all(color: const Color(0xFFDC2626).withValues(alpha: 0.3)),
         ),
         child: Row(
           children: const [
@@ -294,12 +294,12 @@ class DashboardScreen extends StatelessWidget {
         color: const Color(0xFF0F172A),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isClosing ? Colors.greenAccent.withOpacity(0.5) : Colors.blueAccent.withOpacity(0.3),
+          color: isClosing ? Colors.greenAccent.withValues(alpha: 0.5) : Colors.blueAccent.withValues(alpha: 0.3),
           width: 2,
         ),
         boxShadow: [
           BoxShadow(
-            color: isClosing ? Colors.greenAccent.withOpacity(0.2) : Colors.blueAccent.withOpacity(0.1),
+            color: isClosing ? Colors.greenAccent.withValues(alpha: 0.2) : Colors.blueAccent.withValues(alpha: 0.1),
             blurRadius: 15,
             spreadRadius: 2,
           ),
@@ -313,7 +313,7 @@ class DashboardScreen extends StatelessWidget {
             child: Icon(
               Icons.radar,
               size: 100,
-              color: Colors.white.withOpacity(0.03),
+              color: Colors.white.withValues(alpha: 0.03),
             ),
           ),
           Padding(
@@ -327,7 +327,7 @@ class DashboardScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -428,7 +428,7 @@ class DashboardScreen extends StatelessWidget {
         border: Border.all(color: AppTheme.borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -456,7 +456,7 @@ class DashboardScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(icon, color: color, size: 20),

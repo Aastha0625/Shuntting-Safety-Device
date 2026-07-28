@@ -3,7 +3,7 @@ import '../theme/app_theme.dart';
 import '../services/api_service.dart';
 
 class RegistrationScreen extends StatefulWidget {
-  const RegistrationScreen({Key? key}) : super(key: key);
+  const RegistrationScreen({super.key});
 
   @override
   _RegistrationScreenState createState() => _RegistrationScreenState();
@@ -167,7 +167,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 hintText: 'Select position',
               ),
               icon: const Icon(Icons.keyboard_arrow_down),
-              value: _selectedDesignation,
+              initialValue: _selectedDesignation,
               items: _designations.map((String value) {
                 return DropdownMenuItem<String>(
                   value: value,

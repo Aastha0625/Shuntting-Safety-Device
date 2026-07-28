@@ -3,7 +3,7 @@ import '../theme/app_theme.dart';
 import '../widgets/app_drawer.dart';
 
 class DeviceInventoryScreen extends StatefulWidget {
-  const DeviceInventoryScreen({Key? key}) : super(key: key);
+  const DeviceInventoryScreen({super.key});
 
   @override
   State<DeviceInventoryScreen> createState() => _DeviceInventoryScreenState();
@@ -83,7 +83,7 @@ class _DeviceInventoryScreenState extends State<DeviceInventoryScreen> {
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
         ),
         elevation: 4,
-        shadowColor: Colors.black.withOpacity(0.5),
+        shadowColor: Colors.black.withValues(alpha: 0.5),
       ),
       body: Column(
         children: [
@@ -155,7 +155,7 @@ class _DeviceInventoryScreenState extends State<DeviceInventoryScreen> {
           margin: const EdgeInsets.only(bottom: 16.0),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           elevation: 2,
-          shadowColor: Colors.black.withOpacity(0.1),
+          shadowColor: Colors.black.withValues(alpha: 0.1),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(

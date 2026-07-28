@@ -5,7 +5,7 @@ import '../theme/app_theme.dart';
 import '../widgets/app_drawer.dart';
 
 class ReportsScreen extends StatefulWidget {
-  const ReportsScreen({Key? key}) : super(key: key);
+  const ReportsScreen({super.key});
 
   @override
   _ReportsScreenState createState() => _ReportsScreenState();
@@ -47,7 +47,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
         ),
         elevation: 8,
-        shadowColor: Colors.black.withOpacity(0.5),
+        shadowColor: Colors.black.withValues(alpha: 0.5),
         leading: Builder(
           builder: (context) => IconButton(
             icon: const Icon(Icons.menu, color: Colors.white),
@@ -264,7 +264,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         border: Border.all(color: AppTheme.borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -438,7 +438,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         padding: const EdgeInsets.symmetric(vertical: 32.0),
         child: Column(
           children: [
-            Icon(Icons.insert_chart_outlined, size: 64, color: AppTheme.subtitleColor.withOpacity(0.5)),
+            Icon(Icons.insert_chart_outlined, size: 64, color: AppTheme.subtitleColor.withValues(alpha: 0.5)),
             const SizedBox(height: 16),
             const Text(
               'No reports generated yet.',
@@ -476,7 +476,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         border: Border.all(color: AppTheme.borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -502,7 +502,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(

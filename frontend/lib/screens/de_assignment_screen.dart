@@ -3,7 +3,7 @@ import '../theme/app_theme.dart';
 import '../widgets/app_drawer.dart';
 
 class DEAssignmentScreen extends StatefulWidget {
-  const DEAssignmentScreen({Key? key}) : super(key: key);
+  const DEAssignmentScreen({super.key});
 
   @override
   State<DEAssignmentScreen> createState() => _DEAssignmentScreenState();
