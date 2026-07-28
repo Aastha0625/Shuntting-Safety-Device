@@ -4,13 +4,14 @@ import '../widgets/app_drawer.dart';
 import '../services/user_session.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
-import 'dart:math' as math;
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final session = UserSession();
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       drawer: const AppDrawer(),
@@ -71,25 +72,123 @@ class DashboardScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
-            _buildRoleBanner(),
-            _buildCriticalAlertsBanner(),
-            const SizedBox(height: 24),
-            _buildSectionTitle('LIVE ACTIVE SESSIONS', Icons.radar),
-            _buildLiveSessionsCarousel(),
-            const SizedBox(height: 32),
-            _buildSectionTitle('YARD HEALTH SUMMARY', Icons.health_and_safety_outlined),
-            _buildHealthSummaryGrid(),
-            const SizedBox(height: 32),
-          ],
-        ),
+      body: _buildBodyForRole(session),
+    );
+  }
+
+  Widget _buildBodyForRole(UserSession session) {
+    if (session.isSuperAdmin) {
+      return _buildSuperAdminBody();
+    } else if (session.isYardAdmin) {
+      return _buildYardAdminBody(session);
+    } else {
+      return _buildViewerBody();
+    }
+  }
+
+  // ==========================================
+  // SUPER ADMIN DASHBOARD
+  // ==========================================
+  Widget _buildSuperAdminBody() {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 20),
+          _buildSuperAdminBanner(),
+          _buildCriticalAlertsBanner(),
+          const SizedBox(height: 24),
+          _buildSectionTitle('LIVE ACTIVE SESSIONS', Icons.radar),
+          _buildLiveSessionsCarousel(),
+          const SizedBox(height: 16),
+          _buildSectionTitle('GLOBAL YARD HEALTH SUMMARY', Icons.health_and_safety_outlined),
+          _buildHealthSummaryGrid(title1: 'Total Active\nDevices', title2: 'Devices\nOffline', title3: 'Total Sessions\nToday', title4: 'System\nStatus'),
+          const SizedBox(height: 32),
+        ],
       ),
     );
   }
+
+  // ==========================================
+  // YARD ADMIN DASHBOARD
+  // ==========================================
+  Widget _buildYardAdminBody(UserSession session) {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 20),
+          _buildYardAdminBanner(session),
+          _buildYardAdminQuickActions(),
+          _buildCriticalAlertsBanner(), // Filtered implicitly by backend in future
+          const SizedBox(height: 24),
+          _buildSectionTitle('LIVE ACTIVE SESSIONS (MY YARDS)', Icons.radar),
+          _buildLiveSessionsCarousel(),
+          const SizedBox(height: 16),
+          _buildSectionTitle('MY YARDS HEALTH SUMMARY', Icons.health_and_safety_outlined),
+          _buildHealthSummaryGrid(title1: 'Active Devices\n(My Yards)', title2: 'Devices Offline\n(My Yards)', title3: 'My Sessions\nToday', title4: 'My Yards\nStatus'),
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // VIEWER / CONTROL ROOM DASHBOARD
+  // ==========================================
+  Widget _buildViewerBody() {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 20),
+          _buildCriticalAlertsBanner(),
+          const SizedBox(height: 16),
+          _buildSectionTitle('LIVE OPERATIONS FEED', Icons.radar),
+          // Expanded vertical list instead of horizontal carousel
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Column(
+              children: [
+                _buildLiveGlowingCard(
+                  yard: 'North Yard',
+                  line: 'Line 4',
+                  ldDevice: 'LD-001',
+                  deDevice: 'DE-012',
+                  distance: '1.2m',
+                  isClosing: true,
+                  isExpanded: true,
+                ),
+                _buildLiveGlowingCard(
+                  yard: 'South Yard',
+                  line: 'Line 2',
+                  ldDevice: 'LD-014',
+                  deDevice: 'DE-008',
+                  distance: '24.5m',
+                  isClosing: false,
+                  isExpanded: true,
+                ),
+                _buildLiveGlowingCard(
+                  yard: 'North Yard',
+                  line: 'Line 1',
+                  ldDevice: 'LD-005',
+                  deDevice: 'DE-022',
+                  distance: '45.0m',
+                  isClosing: false,
+                  isExpanded: true,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // COMMON WIDGETS
+  // ==========================================
 
   Widget _buildSectionTitle(String title, IconData icon) {
     return Padding(
@@ -112,140 +211,191 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRoleBanner() {
-    final session = UserSession();
-
-    // Show a contextual banner for Yard Admins
-    if (session.isYardAdmin) {
-      final yardNames = session.assignedYardNames;
-      final hasYards = yardNames.isNotEmpty;
-
-      return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: hasYards
-                ? [const Color(0xFF1E3A5F), const Color(0xFF16325B)]
-                : [Colors.orange.shade700, Colors.orange.shade900],
+  Widget _buildSuperAdminBanner() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFDC2626).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFDC2626).withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: const [
+          Icon(Icons.admin_panel_settings, color: Color(0xFFDC2626), size: 18),
+          SizedBox(width: 8),
+          Text(
+            'Super Administrator – Viewing All Yards',
+            style: TextStyle(color: Color(0xFFDC2626), fontSize: 12, fontWeight: FontWeight.w600),
           ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            children: [
-              Icon(
-                hasYards ? Icons.location_city : Icons.warning_amber_rounded,
-                color: Colors.white,
-                size: 28,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      hasYards ? 'Yard Administrator' : 'No Yards Assigned',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      hasYards
-                          ? 'Viewing: ${yardNames.join(", ")}'
-                          : 'Contact Super Administrator to assign yards.',
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+        ],
+      ),
+    );
+  }
 
-    // Super Admin sees a brief summary
-    if (session.isSuperAdmin) {
-      return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFDC2626).withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFDC2626).withValues(alpha: 0.3)),
+  Widget _buildYardAdminBanner(UserSession session) {
+    final yardNames = session.assignedYardNames;
+    final hasYards = yardNames.isNotEmpty;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: hasYards
+              ? [const Color(0xFF1E3A5F), const Color(0xFF16325B)]
+              : [Colors.orange.shade700, Colors.orange.shade900],
         ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Row(
-          children: const [
-            Icon(Icons.admin_panel_settings, color: Color(0xFFDC2626), size: 18),
-            SizedBox(width: 8),
-            Text(
-              'Super Administrator – Viewing All Yards',
-              style: TextStyle(color: Color(0xFFDC2626), fontSize: 12, fontWeight: FontWeight.w600),
+          children: [
+            Icon(
+              hasYards ? Icons.location_city : Icons.warning_amber_rounded,
+              color: Colors.white,
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    hasYards ? 'Yard Administrator' : 'No Yards Assigned',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    hasYards
+                        ? 'Viewing: ${yardNames.join(", ")}'
+                        : 'Contact Super Administrator to assign yards.',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    // Other roles: no special banner
-    return const SizedBox.shrink();
+  Widget _buildYardAdminQuickActions() {
+    return Builder(
+      builder: (context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        child: Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Issue Device workflow coming soon')));
+                },
+                icon: const Icon(Icons.output, size: 16, color: Colors.white),
+                label: const Text('Issue', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Return Device workflow coming soon')));
+                },
+                icon: const Icon(Icons.keyboard_return, size: 16, color: Colors.white),
+                label: const Text('Return', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueAccent,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Maintenance logs coming soon')));
+                },
+                icon: const Icon(Icons.build, size: 16, color: Colors.white),
+                label: const Text('Maint.', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildCriticalAlertsBanner() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0),
-      decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.shade200),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () {},
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade100,
-                    shape: BoxShape.circle,
+    return Builder(
+      builder: (context) => Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16.0),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.red.shade200),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Opening detailed alerts view...')));
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade100,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
                   ),
-                  child: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        '1 Critical Alert',
-                        style: TextStyle(
-                          color: Colors.red,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '1 Critical Alert',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Device DE-042 missed heartbeat (30m+ offline)',
-                        style: TextStyle(
-                          color: Colors.red.shade700,
-                          fontSize: 13,
+                        const SizedBox(height: 2),
+                        Text(
+                          'Device DE-042 missed heartbeat (30m+ offline)',
+                          style: TextStyle(
+                            color: Colors.red.shade700,
+                            fontSize: 12,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const Icon(Icons.chevron_right, color: Colors.red),
-              ],
+                  const Icon(Icons.chevron_right, color: Colors.red, size: 20),
+                ],
+              ),
             ),
           ),
         ),
@@ -255,7 +405,7 @@ class DashboardScreen extends StatelessWidget {
 
   Widget _buildLiveSessionsCarousel() {
     return SizedBox(
-      height: 180,
+      height: 120,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -267,6 +417,7 @@ class DashboardScreen extends StatelessWidget {
             deDevice: 'DE-012',
             distance: '1.2m',
             isClosing: true,
+            isExpanded: false,
           ),
           _buildLiveGlowingCard(
             yard: 'South Yard',
@@ -275,6 +426,7 @@ class DashboardScreen extends StatelessWidget {
             deDevice: 'DE-008',
             distance: '24.5m',
             isClosing: false,
+            isExpanded: false,
           ),
         ],
       ),
@@ -288,38 +440,39 @@ class DashboardScreen extends StatelessWidget {
     required String deDevice,
     required String distance,
     required bool isClosing,
+    required bool isExpanded,
   }) {
     return Container(
-      width: 280,
-      margin: const EdgeInsets.only(right: 16.0, bottom: 8.0),
+      width: isExpanded ? double.infinity : 240,
+      margin: EdgeInsets.only(right: isExpanded ? 0 : 12.0, bottom: isExpanded ? 12.0 : 8.0),
       decoration: BoxDecoration(
         color: const Color(0xFF0F172A),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isClosing ? Colors.greenAccent.withValues(alpha: 0.5) : Colors.blueAccent.withValues(alpha: 0.3),
-          width: 2,
+          color: isClosing ? Colors.redAccent.withValues(alpha: 0.8) : Colors.blueAccent.withValues(alpha: 0.3),
+          width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: isClosing ? Colors.greenAccent.withValues(alpha: 0.2) : Colors.blueAccent.withValues(alpha: 0.1),
-            blurRadius: 15,
-            spreadRadius: 2,
+            color: isClosing ? Colors.redAccent.withValues(alpha: 0.3) : Colors.blueAccent.withValues(alpha: 0.1),
+            blurRadius: 10,
+            spreadRadius: 1,
           ),
         ],
       ),
       child: Stack(
         children: [
           Positioned(
-            top: -20,
-            right: -20,
+            top: -15,
+            right: -15,
             child: Icon(
               Icons.radar,
-              size: 100,
+              size: isExpanded ? 80 : 60,
               color: Colors.white.withValues(alpha: 0.03),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(12.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -327,33 +480,33 @@ class DashboardScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         '$yard • $line',
-                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
                       ),
                     ),
                     Row(
                       children: [
                         Container(
-                          width: 8,
-                          height: 8,
+                          width: 6,
+                          height: 6,
                           decoration: const BoxDecoration(
                             color: Colors.greenAccent,
                             shape: BoxShape.circle,
                           ),
                         ),
                         const SizedBox(width: 4),
-                        const Text('LIVE', style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                        const Text('LIVE', style: TextStyle(color: Colors.greenAccent, fontSize: 9, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ],
                 ),
-                const Spacer(),
+                SizedBox(height: isExpanded ? 24 : 16), // Spacer equivalent
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -361,11 +514,11 @@ class DashboardScreen extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Pairing', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                        const SizedBox(height: 4),
+                        const Text('Pairing', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                        const SizedBox(height: 2),
                         Text(
                           '$ldDevice ↔ $deDevice',
-                          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -373,21 +526,20 @@ class DashboardScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          isClosing ? 'Closing In' : 'Approaching',
+                          isClosing ? 'HAZARD - TOO CLOSE' : 'Approaching',
                           style: TextStyle(
-                            color: isClosing ? Colors.greenAccent : Colors.blueAccent,
-                            fontSize: 10,
+                            color: isClosing ? Colors.redAccent : Colors.blueAccent,
+                            fontSize: 9,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 2),
                         Text(
                           distance,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 28,
+                            fontSize: 22,
                             fontWeight: FontWeight.w900,
-                            letterSpacing: -1,
+                            letterSpacing: -0.5,
                           ),
                         ),
                       ],
@@ -402,21 +554,26 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHealthSummaryGrid() {
+  Widget _buildHealthSummaryGrid({
+    required String title1, 
+    required String title2, 
+    required String title3, 
+    required String title4
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: GridView.count(
         crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 1.3,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.6,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         children: [
-          _buildHealthCard('Total Active\nDevices', '42', Icons.memory, Colors.blue),
-          _buildHealthCard('Devices\nOffline', '2', Icons.wifi_off, Colors.red),
-          _buildHealthCard('Total Sessions\nToday', '18', Icons.history, Colors.purple),
-          _buildHealthCard('System\nStatus', '98%', Icons.check_circle_outline, Colors.green),
+          _buildHealthCard(title1, '42', Icons.memory, Colors.blue),
+          _buildHealthCard(title2, '2', Icons.wifi_off, Colors.red),
+          _buildHealthCard(title3, '18', Icons.history, Colors.purple),
+          _buildHealthCard(title4, '98%', Icons.check_circle_outline, Colors.green),
         ],
       ),
     );
@@ -437,7 +594,7 @@ class DashboardScreen extends StatelessWidget {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,

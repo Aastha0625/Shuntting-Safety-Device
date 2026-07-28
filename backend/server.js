@@ -11,6 +11,7 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json()); // Allows parsing of JSON request bodies
+app.use('/uploads', express.static('uploads')); // Serve uploaded files
 
 // Routes
 app.use('/api/auth', authRoutes);

@@ -2,6 +2,17 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 const { verifyToken, requireRole } = require('../middleware/authMiddleware');
+const upload = require('../middleware/uploadMiddleware');
+
+// @route   POST /api/auth/profile/picture
+// @desc    Upload profile picture
+// @access  Private
+router.post('/profile/picture', verifyToken, upload.single('profile_pic'), authController.uploadProfilePicture);
+
+// @route   DELETE /api/auth/profile/picture
+// @desc    Delete profile picture
+// @access  Private
+router.delete('/profile/picture', verifyToken, authController.deleteProfilePicture);
 
 // @route   POST /api/auth/register
 // @desc    Register a new user

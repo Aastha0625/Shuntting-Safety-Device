@@ -1,11 +1,97 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 import '../theme/app_theme.dart';
 import '../services/user_session.dart';
 import '../widgets/app_drawer.dart';
 import 'login_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
+
+  @override
+  _ProfileScreenState createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  bool _isUploading = false;
+
+  Future<void> _pickAndUploadImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    if (image == null) return;
+
+    setState(() { _isUploading = true; });
+
+    try {
+      final session = UserSession();
+      final request = http.MultipartRequest('POST', Uri.parse('http://localhost:5000/api/auth/profile/picture'));
+      request.headers['Authorization'] = 'Bearer ${session.token}';
+      
+      final bytes = await image.readAsBytes();
+      request.files.add(http.MultipartFile.fromBytes('profile_pic', bytes, filename: image.name));
+      
+      final response = await request.send();
+      if (response.statusCode == 200) {
+        final resData = await response.stream.bytesToString();
+        final json = jsonDecode(resData);
+        setState(() {
+          session.profilePicUrl = json['profile_pic_url'];
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile picture updated!')));
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to upload picture')));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() { _isUploading = false; });
+      }
+    }
+  }
+
+  Future<void> _deleteProfilePicture() async {
+    setState(() { _isUploading = true; });
+
+    try {
+      final session = UserSession();
+      final response = await http.delete(
+        Uri.parse('http://localhost:5000/api/auth/profile/picture'),
+        headers: {
+          'Authorization': 'Bearer ${session.token}',
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        setState(() {
+          session.profilePicUrl = null;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile picture removed')));
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to remove picture')));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() { _isUploading = false; });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,23 +118,71 @@ class ProfileScreen extends StatelessWidget {
         child: Column(
           children: [
             Center(
-              child: Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.blueAccent.withOpacity(0.5), width: 4),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black12, blurRadius: 10, offset: const Offset(0, 5)),
-                  ],
-                ),
-                child: Center(
-                  child: Text(
-                    (session.fullName ?? 'U')[0].toUpperCase(),
-                    style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.white),
+              child: Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.blueAccent.withOpacity(0.5), width: 4),
+                      boxShadow: [
+                        const BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 5)),
+                      ],
+                      image: session.profilePicUrl != null
+                          ? DecorationImage(
+                              image: NetworkImage('http://localhost:5000${session.profilePicUrl}'),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: session.profilePicUrl == null
+                        ? Center(
+                            child: Text(
+                              (session.fullName ?? 'U').isNotEmpty ? (session.fullName ?? 'U')[0].toUpperCase() : 'U',
+                              style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                          )
+                        : null,
                   ),
-                ),
+                  GestureDetector(
+                    onTap: _isUploading ? null : _pickAndUploadImage,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+                        ]
+                      ),
+                      child: _isUploading
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.camera_alt, color: AppTheme.primaryColor, size: 20),
+                    ),
+                  ),
+                  if (session.profilePicUrl != null)
+                    Positioned(
+                      left: 0,
+                      bottom: 0,
+                      child: GestureDetector(
+                        onTap: _isUploading ? null : _deleteProfilePicture,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+                            ]
+                          ),
+                          child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(height: 16),

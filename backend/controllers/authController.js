@@ -115,6 +115,7 @@ exports.login = async (req, res) => {
         email: user.email,
         designation: user.designation,
         role: user.role || 'viewer',
+        profile_pic_url: user.profile_pic_url,
         assignedYards: assignedYards,
       },
       token: generateToken(user.id, user.employee_id, user.role || 'viewer')
@@ -129,16 +130,22 @@ exports.login = async (req, res) => {
 // GET /api/auth/me - Get current user profile with role and assigned yards
 exports.getMe = async (req, res) => {
   try {
+    const userResult = await db.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    const user = userResult.rows[0];
     const assignedYards = await getAssignedYards(req.user.id);
 
     res.status(200).json({
       user: {
-        id: req.user.id,
-        fullName: req.user.fullName,
-        employeeId: req.user.employeeId,
-        email: req.user.email,
-        designation: req.user.designation,
-        role: req.user.role,
+        id: user.id,
+        fullName: user.full_name,
+        employeeId: user.employee_id,
+        email: user.email,
+        designation: user.designation,
+        role: user.role,
+        profile_pic_url: user.profile_pic_url,
         assignedYards: assignedYards,
       },
     });
@@ -148,11 +155,44 @@ exports.getMe = async (req, res) => {
   }
 };
 
+exports.uploadProfilePicture = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No image file provided' });
+    }
+    const userId = req.user.id;
+    // Ensure cross-platform path formatting (e.g. uploads/filename.jpg)
+    const filePath = '/' + req.file.path.replace(/\\/g, '/');
+
+    await db.query('UPDATE users SET profile_pic_url = $1 WHERE id = $2', [filePath, userId]);
+
+    res.json({ 
+      message: 'Profile picture updated successfully', 
+      profile_pic_url: filePath 
+    });
+  } catch (err) {
+    console.error('Error uploading profile picture:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.deleteProfilePicture = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    await db.query('UPDATE users SET profile_pic_url = NULL WHERE id = $1', [userId]);
+
+    res.json({ message: 'Profile picture deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting profile picture:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // GET /api/auth/users - List all users (Super Admin only)
 exports.listUsers = async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT id, full_name, employee_id, email, designation, role, is_active, created_at 
+      `SELECT id, full_name, employee_id, email, designation, role, is_active, created_at, profile_pic_url
        FROM users ORDER BY created_at DESC`
     );
 
@@ -168,6 +208,7 @@ exports.listUsers = async (req, res) => {
         role: user.role,
         isActive: user.is_active,
         createdAt: user.created_at,
+        profile_pic_url: user.profile_pic_url,
         assignedYards: yards,
       };
     }));

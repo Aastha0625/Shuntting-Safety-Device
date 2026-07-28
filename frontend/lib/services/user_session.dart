@@ -14,6 +14,7 @@ class UserSession {
   String? designation;
   String? role;
   String? token;
+  String? profilePicUrl;
   List<Map<String, dynamic>> assignedYards = [];
 
   // Role constants
@@ -32,6 +33,7 @@ class UserSession {
     designation = user['designation'];
     role = user['role'] ?? roleViewer;
     token = data['token'];
+    profilePicUrl = user['profilePicUrl'];
 
     // Parse assigned yards
     if (user['assignedYards'] != null && user['assignedYards'] is List) {
@@ -52,6 +54,7 @@ class UserSession {
     designation = null;
     role = null;
     token = null;
+    profilePicUrl = null;
     assignedYards = [];
   }
 
