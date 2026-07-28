@@ -3,6 +3,10 @@ import '../theme/app_theme.dart';
 import '../widgets/app_drawer.dart';
 import '../services/user_session.dart';
 import 'login_screen.dart';
+import 'device_inventory_screen.dart';
+import 'sessions_screen.dart';
+import 'issue_return_screen.dart';
+import 'reports_screen.dart';
 import 'profile_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -39,10 +43,6 @@ class DashboardScreen extends StatelessWidget {
         title: const Text('Live Operations', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_active, color: Colors.redAccent),
-            onPressed: () {},
-          ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.account_circle, color: Colors.white),
             onSelected: (value) {
@@ -72,37 +72,36 @@ class DashboardScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: _buildBodyForRole(session),
+      body: _buildBodyForRole(context, session),
     );
   }
 
-  Widget _buildBodyForRole(UserSession session) {
+  Widget _buildBodyForRole(BuildContext context, UserSession session) {
     if (session.isSuperAdmin) {
-      return _buildSuperAdminBody();
+      return _buildSuperAdminBody(context);
     } else if (session.isYardAdmin) {
-      return _buildYardAdminBody(session);
+      return _buildYardAdminBody(context, session);
     } else {
-      return _buildViewerBody();
+      return _buildViewerBody(context);
     }
   }
 
   // ==========================================
   // SUPER ADMIN DASHBOARD
   // ==========================================
-  Widget _buildSuperAdminBody() {
+  Widget _buildSuperAdminBody(BuildContext context) {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 20),
           _buildSuperAdminBanner(),
           _buildCriticalAlertsBanner(),
           const SizedBox(height: 24),
           _buildSectionTitle('LIVE ACTIVE SESSIONS', Icons.radar),
-          _buildLiveSessionsCarousel(),
+          _buildLiveSessionsCarousel(context),
           const SizedBox(height: 16),
           _buildSectionTitle('GLOBAL YARD HEALTH SUMMARY', Icons.health_and_safety_outlined),
-          _buildHealthSummaryGrid(title1: 'Total Active\nDevices', title2: 'Devices\nOffline', title3: 'Total Sessions\nToday', title4: 'System\nStatus'),
+          _buildHealthSummaryGrid(context: context, title1: 'Total Active\nDevices', title2: 'Devices\nOffline', title3: 'Total Sessions\nToday', title4: 'System\nStatus'),
           const SizedBox(height: 32),
         ],
       ),
@@ -112,21 +111,20 @@ class DashboardScreen extends StatelessWidget {
   // ==========================================
   // YARD ADMIN DASHBOARD
   // ==========================================
-  Widget _buildYardAdminBody(UserSession session) {
+  Widget _buildYardAdminBody(BuildContext context, UserSession session) {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 20),
           _buildYardAdminBanner(session),
           _buildYardAdminQuickActions(),
           _buildCriticalAlertsBanner(), // Filtered implicitly by backend in future
           const SizedBox(height: 24),
           _buildSectionTitle('LIVE ACTIVE SESSIONS (MY YARDS)', Icons.radar),
-          _buildLiveSessionsCarousel(),
+          _buildLiveSessionsCarousel(context),
           const SizedBox(height: 16),
           _buildSectionTitle('MY YARDS HEALTH SUMMARY', Icons.health_and_safety_outlined),
-          _buildHealthSummaryGrid(title1: 'Active Devices\n(My Yards)', title2: 'Devices Offline\n(My Yards)', title3: 'My Sessions\nToday', title4: 'My Yards\nStatus'),
+          _buildHealthSummaryGrid(context: context, title1: 'Active Devices\n(My Yards)', title2: 'Devices Offline\n(My Yards)', title3: 'My Sessions\nToday', title4: 'My Yards\nStatus'),
           const SizedBox(height: 32),
         ],
       ),
@@ -136,12 +134,11 @@ class DashboardScreen extends StatelessWidget {
   // ==========================================
   // VIEWER / CONTROL ROOM DASHBOARD
   // ==========================================
-  Widget _buildViewerBody() {
+  Widget _buildViewerBody(BuildContext context) {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 20),
           _buildCriticalAlertsBanner(),
           const SizedBox(height: 16),
           _buildSectionTitle('LIVE OPERATIONS FEED', Icons.radar),
@@ -151,6 +148,7 @@ class DashboardScreen extends StatelessWidget {
             child: Column(
               children: [
                 _buildLiveGlowingCard(
+                  context: context,
                   yard: 'North Yard',
                   line: 'Line 4',
                   ldDevice: 'LD-001',
@@ -160,6 +158,7 @@ class DashboardScreen extends StatelessWidget {
                   isExpanded: true,
                 ),
                 _buildLiveGlowingCard(
+                  context: context,
                   yard: 'South Yard',
                   line: 'Line 2',
                   ldDevice: 'LD-014',
@@ -169,6 +168,7 @@ class DashboardScreen extends StatelessWidget {
                   isExpanded: true,
                 ),
                 _buildLiveGlowingCard(
+                  context: context,
                   yard: 'North Yard',
                   line: 'Line 1',
                   ldDevice: 'LD-005',
@@ -294,7 +294,7 @@ class DashboardScreen extends StatelessWidget {
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Issue Device workflow coming soon')));
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const IssueReturnScreen()));
                 },
                 icon: const Icon(Icons.output, size: 16, color: Colors.white),
                 label: const Text('Issue', style: TextStyle(color: Colors.white)),
@@ -309,7 +309,7 @@ class DashboardScreen extends StatelessWidget {
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Return Device workflow coming soon')));
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const IssueReturnScreen()));
                 },
                 icon: const Icon(Icons.keyboard_return, size: 16, color: Colors.white),
                 label: const Text('Return', style: TextStyle(color: Colors.white)),
@@ -324,7 +324,7 @@ class DashboardScreen extends StatelessWidget {
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Maintenance logs coming soon')));
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const DeviceInventoryScreen()));
                 },
                 icon: const Icon(Icons.build, size: 16, color: Colors.white),
                 label: const Text('Maint.', style: TextStyle(color: Colors.white)),
@@ -355,7 +355,7 @@ class DashboardScreen extends StatelessWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(8),
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Opening detailed alerts view...')));
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const SessionsScreen()));
             },
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
@@ -403,7 +403,7 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLiveSessionsCarousel() {
+  Widget _buildLiveSessionsCarousel(BuildContext context) {
     return SizedBox(
       height: 120,
       child: ListView(
@@ -411,6 +411,7 @@ class DashboardScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         children: [
           _buildLiveGlowingCard(
+            context: context,
             yard: 'North Yard',
             line: 'Line 4',
             ldDevice: 'LD-001',
@@ -420,6 +421,7 @@ class DashboardScreen extends StatelessWidget {
             isExpanded: false,
           ),
           _buildLiveGlowingCard(
+            context: context,
             yard: 'South Yard',
             line: 'Line 2',
             ldDevice: 'LD-014',
@@ -434,6 +436,7 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildLiveGlowingCard({
+    required BuildContext context,
     required String yard,
     required String line,
     required String ldDevice,
@@ -460,101 +463,111 @@ class DashboardScreen extends StatelessWidget {
           ),
         ],
       ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -15,
-            right: -15,
-            child: Icon(
-              Icons.radar,
-              size: isExpanded ? 80 : 60,
-              color: Colors.white.withValues(alpha: 0.03),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const SessionsScreen()));
+          },
+          child: Stack(
+            children: [
+              Positioned(
+                top: -15,
+                right: -15,
+                child: Icon(
+                  Icons.radar,
+                  size: isExpanded ? 80 : 60,
+                  color: Colors.white.withValues(alpha: 0.03),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        '$yard • $line',
-                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
-                      ),
-                    ),
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: Colors.greenAccent,
-                            shape: BoxShape.circle,
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '$yard • $line',
+                            style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
                           ),
                         ),
-                        const SizedBox(width: 4),
-                        const Text('LIVE', style: TextStyle(color: Colors.greenAccent, fontSize: 9, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ],
-                ),
-                SizedBox(height: isExpanded ? 24 : 16), // Spacer equivalent
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Pairing', style: TextStyle(color: Colors.white54, fontSize: 10)),
-                        const SizedBox(height: 2),
-                        Text(
-                          '$ldDevice ↔ $deDevice',
-                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                        Row(
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: Colors.greenAccent,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Text('LIVE', style: TextStyle(color: Colors.greenAccent, fontSize: 9, fontWeight: FontWeight.bold)),
+                          ],
                         ),
                       ],
                     ),
-                    Column(
+                    SizedBox(height: isExpanded ? 24 : 16), // Spacer equivalent
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          isClosing ? 'HAZARD - TOO CLOSE' : 'Approaching',
-                          style: TextStyle(
-                            color: isClosing ? Colors.redAccent : Colors.blueAccent,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Pairing', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                            const SizedBox(height: 2),
+                            Text(
+                              '$ldDevice ↔ $deDevice',
+                              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                            ),
+                          ],
                         ),
-                        Text(
-                          distance,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.5,
-                          ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              isClosing ? 'HAZARD - TOO CLOSE' : 'Approaching',
+                              style: TextStyle(
+                                color: isClosing ? Colors.redAccent : Colors.blueAccent,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              distance,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildHealthSummaryGrid({
+    required BuildContext context,
     required String title1, 
     required String title2, 
     required String title3, 
@@ -570,16 +583,59 @@ class DashboardScreen extends StatelessWidget {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         children: [
-          _buildHealthCard(title1, '42', Icons.memory, Colors.blue),
-          _buildHealthCard(title2, '2', Icons.wifi_off, Colors.red),
-          _buildHealthCard(title3, '18', Icons.history, Colors.purple),
-          _buildHealthCard(title4, '98%', Icons.check_circle_outline, Colors.green),
+          _buildHealthCard(
+            context: context, 
+            title: title1, 
+            value: '42', 
+            icon: Icons.memory, 
+            color: Colors.blue,
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const DeviceInventoryScreen()));
+            },
+          ),
+          _buildHealthCard(
+            context: context, 
+            title: title2, 
+            value: '2', 
+            icon: Icons.wifi_off, 
+            color: Colors.red,
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const DeviceInventoryScreen()));
+            },
+          ),
+          _buildHealthCard(
+            context: context, 
+            title: title3, 
+            value: '18', 
+            icon: Icons.history, 
+            color: Colors.purple,
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const SessionsScreen()));
+            },
+          ),
+          _buildHealthCard(
+            context: context, 
+            title: title4, 
+            value: '98%', 
+            icon: Icons.check_circle_outline, 
+            color: Colors.green,
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const ReportsScreen()));
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildHealthCard(String title, String value, IconData icon, Color color) {
+  Widget _buildHealthCard({
+    required BuildContext context, 
+    required String title, 
+    required String value, 
+    required IconData icon, 
+    required Color color,
+    required VoidCallback onTap,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -593,44 +649,51 @@ class DashboardScreen extends StatelessWidget {
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: AppTheme.subtitleColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    height: 1.2,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: AppTheme.subtitleColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        height: 1.2,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(icon, color: color, size: 20),
+                    ),
+                  ],
                 ),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: AppTheme.primaryColor,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
                   ),
-                  child: Icon(icon, color: color, size: 20),
                 ),
               ],
             ),
-            Text(
-              value,
-              style: TextStyle(
-                color: AppTheme.primaryColor,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

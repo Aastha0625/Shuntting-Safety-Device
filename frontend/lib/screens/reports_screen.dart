@@ -14,6 +14,8 @@ class ReportsScreen extends StatefulWidget {
 class _ReportsScreenState extends State<ReportsScreen> {
   String _selectedTime = 'Daily';
   String _selectedReportType = 'Daily Shunting';
+  bool _isLoading = false;
+  bool _hasRunReport = false;
 
   final List<String> _timeTabs = ['Daily', 'Weekly', 'Monthly'];
   final List<String> _reportTypes = [
@@ -72,11 +74,52 @@ class _ReportsScreenState extends State<ReportsScreen> {
               const SizedBox(height: 24),
               _buildFilterPanel(),
               const SizedBox(height: 24),
+              _buildRunReportButton(),
+              const SizedBox(height: 16),
               _buildActionBar(),
               const SizedBox(height: 32),
               _buildResultsList(),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _runReport() async {
+    setState(() {
+      _isLoading = true;
+      _hasRunReport = false;
+    });
+
+    // Simulate network delay
+    await Future.delayed(const Duration(milliseconds: 1200));
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _hasRunReport = true;
+      });
+    }
+  }
+
+  Widget _buildRunReportButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _isLoading ? null : _runReport,
+        icon: _isLoading 
+            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+            : const Icon(Icons.analytics, color: Colors.white, size: 20),
+        label: Text(
+          _isLoading ? 'GENERATING...' : 'RUN REPORT',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppTheme.primaryColor,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          elevation: 4,
         ),
       ),
     );
@@ -390,11 +433,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
         Expanded(
           flex: 2,
           child: ElevatedButton.icon(
-            onPressed: () => _downloadReport('excel'),
-            icon: const Icon(Icons.table_chart, color: Colors.greenAccent, size: 18),
-            label: const Text('Excel', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            onPressed: _hasRunReport ? () => _downloadReport('excel') : null,
+            icon: Icon(Icons.table_chart, color: _hasRunReport ? Colors.greenAccent : Colors.grey, size: 18),
+            label: Text('Excel', style: TextStyle(color: _hasRunReport ? Colors.white : Colors.grey, fontWeight: FontWeight.bold)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: _hasRunReport ? AppTheme.primaryColor : Colors.grey.shade300,
               padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
@@ -404,11 +447,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
         Expanded(
           flex: 2,
           child: ElevatedButton.icon(
-            onPressed: () => _downloadReport('pdf'),
-            icon: const Icon(Icons.picture_as_pdf, color: Colors.redAccent, size: 18),
-            label: const Text('PDF', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            onPressed: _hasRunReport ? () => _downloadReport('pdf') : null,
+            icon: Icon(Icons.picture_as_pdf, color: _hasRunReport ? Colors.redAccent : Colors.grey, size: 18),
+            label: Text('PDF', style: TextStyle(color: _hasRunReport ? Colors.white : Colors.grey, fontWeight: FontWeight.bold)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: _hasRunReport ? AppTheme.primaryColor : Colors.grey.shade300,
               padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
@@ -418,9 +461,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
         Expanded(
           flex: 2,
           child: OutlinedButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.print, color: AppTheme.primaryColor, size: 18),
-            label: const Text('Print', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
+            onPressed: _hasRunReport ? () {} : null,
+            icon: Icon(Icons.print, color: _hasRunReport ? AppTheme.primaryColor : Colors.grey, size: 18),
+            label: Text('Print', style: TextStyle(color: _hasRunReport ? AppTheme.primaryColor : Colors.grey, fontWeight: FontWeight.bold)),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
               side: const BorderSide(color: AppTheme.primaryColor),
@@ -433,29 +476,99 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildResultsList() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 32.0),
-        child: Column(
-          children: [
-            Icon(Icons.insert_chart_outlined, size: 64, color: AppTheme.subtitleColor.withValues(alpha: 0.5)),
-            const SizedBox(height: 16),
-            const Text(
-              'No reports generated yet.',
-              style: TextStyle(color: AppTheme.subtitleColor, fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Select your filters above and download the Excel or PDF.',
-              style: TextStyle(color: AppTheme.subtitleColor, fontSize: 12),
-            ),
-          ],
+    if (_isLoading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 48.0),
+          child: CircularProgressIndicator(),
         ),
-      ),
+      );
+    }
+
+    if (!_hasRunReport) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 32.0),
+          child: Column(
+            children: [
+              Icon(Icons.insert_chart_outlined, size: 64, color: AppTheme.subtitleColor.withValues(alpha: 0.5)),
+              const SizedBox(height: 16),
+              const Text(
+                'No reports generated yet.',
+                style: TextStyle(color: AppTheme.subtitleColor, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Select your filters above and click Run Report.',
+                style: TextStyle(color: AppTheme.subtitleColor, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '3 RESULTS FOUND',
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.subtitleColor, letterSpacing: 1.0),
+        ),
+        const SizedBox(height: 16),
+        _buildResultCard(
+          context: context,
+          date: 'Jul 28, 2026',
+          id: 'SH-10293',
+          status: 'Completed',
+          statusColor: Colors.green,
+          yard: 'North Yard / Line 4',
+          employee: 'EMP-2294 (John)',
+          devices: 'LD-001 / DE-012',
+          duration: '45m 12s',
+          minDist: '1.2m',
+          finalDist: '1.2m',
+          alerts: 0,
+          fails: 0,
+        ),
+        const SizedBox(height: 16),
+        _buildResultCard(
+          context: context,
+          date: 'Jul 28, 2026',
+          id: 'SH-10294',
+          status: 'Warning',
+          statusColor: Colors.orange,
+          yard: 'South Yard / Line 2',
+          employee: 'EMP-1102 (Sarah)',
+          devices: 'LD-014 / DE-008',
+          duration: '22m 05s',
+          minDist: '0.8m',
+          finalDist: '0.8m',
+          alerts: 2,
+          fails: 0,
+        ),
+        const SizedBox(height: 16),
+        _buildResultCard(
+          context: context,
+          date: 'Jul 28, 2026',
+          id: 'SH-10295',
+          status: 'Cancelled',
+          statusColor: Colors.red,
+          yard: 'North Yard / Line 1',
+          employee: 'EMP-1144 (Mike)',
+          devices: 'LD-005 / DE-022',
+          duration: '4m 30s',
+          minDist: '45.0m',
+          finalDist: '45.0m',
+          alerts: 0,
+          fails: 1,
+        ),
+      ],
     );
   }
 
   Widget _buildResultCard({
+    required BuildContext context,
     required String date,
     required String id,
     required String status,
@@ -482,9 +595,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
           ),
         ],
       ),
-      child: Column(
-        children: [
-          // Header
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Opening detailed report for session $id...')));
+          },
+          child: Column(
+            children: [
+              // Header
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: const BoxDecoration(
@@ -592,7 +712,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           ),
         ],
       ),
-    );
+    )));
   }
 
   Widget _buildInfoItem(String label, String value) {
