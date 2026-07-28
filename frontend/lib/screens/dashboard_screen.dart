@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_drawer.dart';
+import '../services/user_session.dart';
 import 'login_screen.dart';
 import 'dart:math' as math;
 
@@ -48,6 +49,7 @@ class DashboardScreen extends StatelessWidget {
                   const SnackBar(content: Text('Profile Screen (Coming Soon)')),
                 );
               } else if (value == 'logout') {
+                UserSession().clear();
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -72,6 +74,7 @@ class DashboardScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 20),
+            _buildRoleBanner(),
             _buildCriticalAlertsBanner(),
             const SizedBox(height: 24),
             _buildSectionTitle('LIVE ACTIVE SESSIONS', Icons.radar),
@@ -105,6 +108,89 @@ class DashboardScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildRoleBanner() {
+    final session = UserSession();
+
+    // Show a contextual banner for Yard Admins
+    if (session.isYardAdmin) {
+      final yardNames = session.assignedYardNames;
+      final hasYards = yardNames.isNotEmpty;
+
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: hasYards
+                ? [const Color(0xFF1E3A5F), const Color(0xFF16325B)]
+                : [Colors.orange.shade700, Colors.orange.shade900],
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Icon(
+                hasYards ? Icons.location_city : Icons.warning_amber_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hasYards ? 'Yard Administrator' : 'No Yards Assigned',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      hasYards
+                          ? 'Viewing: ${yardNames.join(", ")}'
+                          : 'Contact Super Administrator to assign yards.',
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Super Admin sees a brief summary
+    if (session.isSuperAdmin) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFDC2626).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFDC2626).withOpacity(0.3)),
+        ),
+        child: Row(
+          children: const [
+            Icon(Icons.admin_panel_settings, color: Color(0xFFDC2626), size: 18),
+            SizedBox(width: 8),
+            Text(
+              'Super Administrator – Viewing All Yards',
+              style: TextStyle(color: Color(0xFFDC2626), fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Other roles: no special banner
+    return const SizedBox.shrink();
   }
 
   Widget _buildCriticalAlertsBanner() {

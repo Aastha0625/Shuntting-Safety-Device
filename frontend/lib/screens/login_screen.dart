@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
+import '../services/user_session.dart';
 import 'registration_screen.dart';
 import 'main_screen.dart';
 
@@ -49,8 +50,13 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     if (result['success']) {
+      final session = UserSession();
+      final roleMessage = session.isYardAdmin && session.assignedYards.isEmpty
+          ? 'Login Successful! No yards assigned yet. Contact Super Admin.'
+          : 'Login Successful! Role: ${session.displayRole}';
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login Successful!'), backgroundColor: Colors.green),
+        SnackBar(content: Text(roleMessage), backgroundColor: Colors.green),
       );
       Navigator.pushReplacement(
         context,
