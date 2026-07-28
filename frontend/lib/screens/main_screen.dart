@@ -4,6 +4,8 @@ import '../services/user_session.dart';
 import 'dashboard_screen.dart';
 import 'reports_screen.dart';
 import 'user_management_screen.dart';
+import '../screens/profile_screen.dart';
+import '../screens/sessions_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -20,14 +22,14 @@ class _MainScreenState extends State<MainScreen> {
     final screens = <Widget>[
       const DashboardScreen(),
       const ReportsScreen(),
-      const Center(child: Text('Sessions Screen (Coming Soon)')),
+      const SessionsScreen(),
     ];
 
     if (session.isSuperAdmin) {
       // Super Admin gets a 4th tab: User Management
       screens.add(const UserManagementScreen());
     } else {
-      screens.add(const Center(child: Text('Profile Screen (Coming Soon)')));
+      screens.add(const ProfileScreen());
     }
 
     return screens;

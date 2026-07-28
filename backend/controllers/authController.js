@@ -21,10 +21,9 @@ const generateToken = (userId, employeeId, role) => {
   );
 };
 
-// Helper: Fetch assigned yards for a user
 const getAssignedYards = async (userId) => {
   const result = await db.query(
-    `SELECT y.id, y.yard_code, y.yard_name, y.station, y.division, y.zone, y.yard_type, y.status
+    `SELECT y.id, y.yard_name, y.location, y.status
      FROM user_yard_assignments uya
      JOIN yards y ON uya.yard_id = y.id
      WHERE uya.user_id = $1 AND y.status = 'Active'`,

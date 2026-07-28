@@ -73,6 +73,9 @@ class UserSession {
   /// Whether this user can manage users (Super Admin only)
   bool get canManageUsers => isSuperAdmin;
 
+  /// Whether this user can view sessions (All roles)
+  bool get canViewSessions => true;
+
   /// Whether the user is logged in
   bool get isLoggedIn => token != null && id != null;
 

@@ -3,6 +3,7 @@ import '../theme/app_theme.dart';
 import '../widgets/app_drawer.dart';
 import '../services/user_session.dart';
 import 'login_screen.dart';
+import 'profile_screen.dart';
 import 'dart:math' as math;
 
 class DashboardScreen extends StatelessWidget {
@@ -45,8 +46,9 @@ class DashboardScreen extends StatelessWidget {
             icon: const Icon(Icons.account_circle, color: Colors.white),
             onSelected: (value) {
               if (value == 'profile') {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Profile Screen (Coming Soon)')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ProfileScreen()),
                 );
               } else if (value == 'logout') {
                 UserSession().clear();

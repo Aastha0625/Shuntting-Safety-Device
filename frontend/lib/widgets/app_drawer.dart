@@ -6,6 +6,8 @@ import '../screens/device_inventory_screen.dart';
 import '../screens/de_assignment_screen.dart';
 import '../screens/issue_return_screen.dart';
 import '../screens/user_management_screen.dart';
+import '../screens/profile_screen.dart';
+import '../screens/sessions_screen.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -20,83 +22,89 @@ class AppDrawer extends StatelessWidget {
         padding: EdgeInsets.zero,
         children: [
           // Drawer Header with user info and role
-          DrawerHeader(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF1A2A42), Color(0xFF0F172A)],
+          InkWell(
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
+            },
+            child: DrawerHeader(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF1A2A42), Color(0xFF0F172A)],
+                ),
               ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 24,
-                      backgroundColor: Colors.white24,
-                      child: Text(
-                        (session.fullName ?? 'U')[0].toUpperCase(),
-                        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor: Colors.white24,
+                        child: Text(
+                          (session.fullName ?? 'U')[0].toUpperCase(),
+                          style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            session.fullName ?? 'User',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              session.fullName ?? 'User',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            session.employeeId ?? '',
-                            style: const TextStyle(color: Colors.white60, fontSize: 12),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                            const SizedBox(height: 2),
+                            Text(
+                              session.employeeId ?? '',
+                              style: const TextStyle(color: Colors.white60, fontSize: 12),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Role badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _getRoleBadgeColor(session.role),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      session.displayRole,
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  // Show assigned yards for Yard Admin
+                  if (session.isYardAdmin && session.assignedYards.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Yards: ${session.assignedYardNames.join(", ")}',
+                      style: const TextStyle(color: Colors.white70, fontSize: 11),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                ),
-                const SizedBox(height: 12),
-                // Role badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _getRoleBadgeColor(session.role),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    session.displayRole,
-                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
-                  ),
-                ),
-                // Show assigned yards for Yard Admin
-                if (session.isYardAdmin && session.assignedYards.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    'Yards: ${session.assignedYardNames.join(", ")}',
-                    style: const TextStyle(color: Colors.white70, fontSize: 11),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  if (session.isYardAdmin && session.assignedYards.isEmpty) ...[
+                    const SizedBox(height: 6),
+                    const Text(
+                      '⚠ No yards assigned',
+                      style: TextStyle(color: Colors.orangeAccent, fontSize: 11),
+                    ),
+                  ],
                 ],
-                if (session.isYardAdmin && session.assignedYards.isEmpty) ...[
-                  const SizedBox(height: 6),
-                  const Text(
-                    '⚠ No yards assigned',
-                    style: TextStyle(color: Colors.orangeAccent, fontSize: 11),
-                  ),
-                ],
-              ],
+              ),
             ),
           ),
 
@@ -109,6 +117,15 @@ class AppDrawer extends StatelessWidget {
               Navigator.popUntil(context, (route) => route.isFirst);
             },
           ),
+
+          // Live Operations & Sessions - All roles
+          if (session.canViewSessions)
+            _buildDrawerItem(
+              context: context,
+              icon: Icons.satellite_alt,
+              title: 'Live Operations & Sessions',
+              destination: const SessionsScreen(),
+            ),
 
           // Yard & Line Setup - Super Admin only
           if (session.canConfigureYards)
