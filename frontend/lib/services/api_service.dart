@@ -1,9 +1,19 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'user_session.dart';
 
 class ApiService {
   // Use 10.0.2.2 for Android emulator to access local host, or localhost for web/desktop
   static const String baseUrl = 'http://localhost:5000/api';
+
+  /// Get auth headers with Bearer token
+  static Map<String, String> _authHeaders() {
+    final token = UserSession().token;
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
 
   static Future<Map<String, dynamic>> registerUser({
     required String fullName,
@@ -54,12 +64,148 @@ class ApiService {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
+        // Store user session data (role, assigned yards, token)
+        UserSession().setFromLoginResponse(data);
         return {'success': true, 'data': data};
       } else {
         return {'success': false, 'message': data['message'] ?? 'Login failed'};
       }
     } catch (e) {
       return {'success': false, 'message': 'Network error or Server unreachable. Check database connection.'};
+    }
+  }
+
+  /// Fetch current user profile with role and assigned yards
+  static Future<Map<String, dynamic>> fetchMe() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/auth/me'),
+        headers: _authHeaders(),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'data': data};
+      } else {
+        return {'success': false, 'message': data['message'] ?? 'Failed to fetch profile'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error.'};
+    }
+  }
+
+  /// Fetch yards (backend filters by role automatically)
+  static Future<Map<String, dynamic>> fetchYards() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/yards'),
+        headers: _authHeaders(),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'data': data};
+      } else {
+        return {'success': false, 'message': data['message'] ?? 'Failed to fetch yards'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error.'};
+    }
+  }
+
+  /// List all users (Super Admin only)
+  static Future<Map<String, dynamic>> fetchUsers() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/auth/users'),
+        headers: _authHeaders(),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'data': data};
+      } else {
+        return {'success': false, 'message': data['message'] ?? 'Failed to fetch users'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error.'};
+    }
+  }
+
+  /// Assign a yard to a user (Super Admin only)
+  static Future<Map<String, dynamic>> assignYardToUser({
+    required String userId,
+    required String yardId,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/yards/assign'),
+        headers: _authHeaders(),
+        body: jsonEncode({
+          'userId': userId,
+          'yardId': yardId,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 201) {
+        return {'success': true, 'message': data['message']};
+      } else {
+        return {'success': false, 'message': data['message'] ?? 'Assignment failed'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error.'};
+    }
+  }
+
+  /// Remove yard assignment from a user (Super Admin only)
+  static Future<Map<String, dynamic>> removeYardAssignment({
+    required String userId,
+    required String yardId,
+  }) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/yards/assign'),
+        headers: _authHeaders(),
+        body: jsonEncode({
+          'userId': userId,
+          'yardId': yardId,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': data['message']};
+      } else {
+        return {'success': false, 'message': data['message'] ?? 'Removal failed'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error.'};
+    }
+  }
+
+  /// Toggle user active/inactive (Super Admin only)
+  static Future<Map<String, dynamic>> toggleUserActive(String userId) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/auth/users/$userId/toggle-active'),
+        headers: _authHeaders(),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': data['message'], 'isActive': data['isActive']};
+      } else {
+        return {'success': false, 'message': data['message'] ?? 'Failed'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error.'};
     }
   }
 }
