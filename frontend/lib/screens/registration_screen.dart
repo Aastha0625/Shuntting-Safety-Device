@@ -23,7 +23,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final List<String> _designations = [
     'Super Administrator',
     'Yard Administrator',
-    'Maintenance User',
     'Viewer / Control Room User'
   ];
 
