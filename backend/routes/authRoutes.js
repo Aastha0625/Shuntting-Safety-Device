@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
+const { verifyToken, requireRole } = require('../middleware/authMiddleware');
 
 // @route   POST /api/auth/register
 // @desc    Register a new user
@@ -11,5 +12,20 @@ router.post('/register', authController.register);
 // @desc    Login user and get token
 // @access  Public
 router.post('/login', authController.login);
+
+// @route   GET /api/auth/me
+// @desc    Get current user profile with role and assigned yards
+// @access  Private (any authenticated user)
+router.get('/me', verifyToken, authController.getMe);
+
+// @route   GET /api/auth/users
+// @desc    List all users (for user management)
+// @access  Private (Super Admin only)
+router.get('/users', verifyToken, requireRole('super_admin'), authController.listUsers);
+
+// @route   PUT /api/auth/users/:id/toggle-active
+// @desc    Activate or deactivate a user
+// @access  Private (Super Admin only)
+router.put('/users/:id/toggle-active', verifyToken, requireRole('super_admin'), authController.toggleUserActive);
 
 module.exports = router;
