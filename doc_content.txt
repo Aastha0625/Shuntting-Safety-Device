@@ -1,0 +1,1426 @@
+
+
+
+PRODUCT REQUIREMENT DOCUMENT
+Shunting Safety Device Management,Live Monitoring and Audit Software
+Simplified Yard-Centric MVP
+Yard Configuration  |  Device Registration  |  Automatic Sessions  |  Device Health  |  Reports
+
+Document Version
+1.0
+Product Phase
+Minimum Viable Product (MVP)
+Product Type
+Web-based Railway yard device management and monitoring application
+Primary Device Scope
+Dead-End Device (DE) and Portable Loco Device (LD)
+Prepared For
+Software, Hardware, Operations and Railway Stakeholders
+
+Core Rule: Every configured yard line has exactly one dead end.
+
+Document Control
+Field
+Value
+Document Title
+Shunting Safety Device Management, Live Monitoring and Audit Software
+Version
+1.0
+Product Stage
+MVP
+Status
+Functional Product Requirement
+Primary Objective
+Manage yard devices, monitor live LD-DE sessions, verify device health and generate audit reports
+Primary Users
+Railway administrators, yard supervisors, maintenance users and control-room viewers
+
+Revision History
+Version
+Change Summary
+0.1
+Initial broad device-management concept
+0.5
+Simplified to yard-centric operation and automatic sessions
+1.0
+Finalised one-line-one-dead-end rule and compact MVP screen structure
+
+Table of Contents
+1. Product Purpose
+2. Business Problem
+3. Product Principles
+4. Assumptions
+5. Scope
+6. User Roles
+7. Simplified Main Menu
+8. End-to-End Product Flow
+9. Login
+10. Dashboard
+11. Yard Configuration
+12. Device Registration and Management
+13. Device Issue / Return
+14. Automatic Device Data Flow
+15. Automatic Shunting Session Logic
+16. Live Operations
+17. Device Health
+18. Session History / Audit
+19. Reports
+20. Alerts
+21. Device and Data Relationships
+22. Cardinality Rules
+23. Minimum Logical Database Entities
+24. Audit Requirements
+25. Non-Functional Requirements
+26. Business Rules
+27. MVP Acceptance Criteria
+28. Recommended Development Stages
+29. Future Enhancements
+30. Final Product Summary
+
+1. Product Purpose
+The purpose of the Shunting Safety Software is to provide a simple central application for managing, monitoring and auditing shunting safety devices installed and used within Railway yards.
+The application will allow Railway users to:
+Create and configure a Railway yard.
+Configure the pit lines, stabling lines, sidings and other lines available in the yard.
+Maintain exactly one dead end for every configured line.
+Register fixed and portable shunting devices within the yard.
+Assign each fixed Dead-End Device to a specific line.
+Issue portable devices to a Pointsman, Shunter or authorised Railway employee.
+Automatically receive device data when devices are powered on.
+Automatically identify when a Loco Device connects with a Dead-End Device.
+Automatically create and close a shunting session.
+View ongoing shunting activity live.
+Monitor the working condition of all fixed Dead-End Devices.
+Maintain SIM, installation, maintenance and battery information.
+Maintain permanent audit logs.
+Generate daily and historical reports in Excel and PDF.
+Product BoundaryThe application is not a complete yard-operation planning or train-management system. Its primary purpose is device management, live safety monitoring, health monitoring, operational audit and reporting.
+
+2. Business Problem
+Railway yards may contain several pit lines, stabling lines and sidings. Fixed Dead-End Devices are installed at the dead ends of these lines. Portable Loco Devices are used during shunting operations and can communicate with different Dead-End Devices within the same yard.
+Without a central software platform, Railway users may not have a reliable digital record of:
+Which devices are installed in a yard.
+Which line a Dead-End Device is installed on.
+Whether a Dead-End Device is operational.
+When a device last communicated with the cloud.
+Which portable device was issued to which employee.
+Which Loco Device connected with which Dead-End Device.
+When a shunting session started and ended.
+What the final placement distance was from the dead end.
+Whether any device communication failed.
+Whether SIM recharge or maintenance is due.
+How many operations occurred during a day.
+The proposed software will create one central and auditable source of truth for all these activities.
+3. Product Principles
+Principle
+Requirement
+Simple
+The application should have a limited number of screens.
+Yard-Centric
+All devices and lines must belong to a yard.
+Automatic
+Users should not manually create shunting operations.
+Device-Driven
+A session starts from actual LD-to-DE communication.
+Configurable
+Yard, lines, devices, SIM and thresholds are maintained in the application.
+Auditable
+All connections, sessions and changes must be permanently recorded.
+Expandable
+Pointsman and Coupling Devices may be activated later.
+Easy to Maintain
+Device, SIM and maintenance records should be editable from one place.
+Live
+Active sessions and device health should be visible in near real time.
+Reportable
+All required information should be downloadable in Excel and PDF.
+
+4. Assumptions
+4.1 Organisation Assumptions
+Railway Zone and Division values will be predefined or hard-coded.
+Separate Zone and Division configuration screens are not required in the MVP.
+Station will be selected or entered while creating the yard.
+Multiple yards can be created in the application.
+A yard belongs to one station, one division and one zone.
+4.2 Yard and Line Assumptions
+A yard may contain multiple lines.
+Supported line types include Pit Line, Stabling Line, Siding, Inspection Line, Maintenance Line and Other.
+Every configured line has exactly one dead end.
+A line cannot have multiple dead ends.
+Dead-end information will be captured directly within the line configuration.
+A separate Dead-End Location Configuration screen is not required.
+A line may have one active Dead-End Device installed at its dead end.
+A line may temporarily have no active Dead-End Device when the device is under maintenance, removed or awaiting replacement.
+Replacement history must be retained.
+Zone  ↓Division  ↓Station  ↓Yard  ↓Multiple Lines  ↓Exactly One Dead End Per Line  ↓Maximum One Active Dead-End Device
+
+4.3 Device Assumptions
+Device Code
+Device Type
+Nature
+DE
+Dead-End Device
+Fixed
+LD
+Loco Device / Loco Pilot Device
+Portable
+PD
+Pointsman Device
+Portable
+CD
+Coupling Device
+Portable
+
+Dead-End Device and Loco Device are active in the initial deployment.
+Pointsman Device and Coupling Device may remain configured but inactive until required.
+The Loco Device includes its TFT/HMI. The TFT/HMI will not be registered separately.
+4.4 Communication Assumptions
+Dead-End Devices and Loco Devices have GSM/SIM connectivity.
+Devices also communicate locally through RF.
+Local device-to-device communication does not depend on the cloud.
+Device data is automatically sent to the cloud when GSM is available.
+When GSM is unavailable, devices may store events locally and upload them later, subject to hardware capability.
+The original device event time must be preserved.
+The cloud receives device heartbeat, connection, disconnection, distance, warning/fault and acknowledgement events.
+4.5 Session Assumptions
+No user manually creates a shunting session.
+One LD-to-DE connection creates one shunting session.
+A session starts when a valid connection-start event is received.
+A session ends when a disconnection event is received or when no communication is received for a configurable inactivity period.
+One Loco Device may connect with different Dead-End Devices during the same shift.
+Each LD-to-DE connection is recorded as a separate session.
+Sessions may be grouped in reports by employee, issue record, shift, date and yard.
+LD and DE must belong to the same yard for a valid session.
+Cross-yard communication attempts are rejected or flagged.
+4.6 Heartbeat Assumptions
+Fixed Dead-End Devices are powered devices and are not primarily battery-operated.
+Each Dead-End Device sends a heartbeat every 30 minutes.
+Heartbeat frequency is configurable in the backend.
+The application monitors missed heartbeats and calculates health automatically.
+Device health alerts are displayed in the application.
+SMS and email notifications may be introduced later.
+4.7 Portable Device Issue Assumptions
+LD, PD and CD devices belong to the portable device pool of a yard.
+A portable device may be issued to an authorised employee.
+The software records who took the device, issue time, return time and condition at issue/return.
+A portable device cannot be issued to two employees simultaneously.
+Sessions created during the issue period are linked to the issue record.
+5. Scope
+5.1 Included in MVP
+Included Capability
+Login and role-based access
+Yard creation
+Line configuration
+Exactly one dead end per line
+Device registration
+Four configurable device types
+DE assignment to line
+SIM management
+Maintenance management
+Portable-device issue and return
+Automatic device heartbeat
+Device-health monitoring
+Automatic LD-DE session creation
+Automatic session closure
+Live shunting view
+Session audit history
+Device failure alerts
+Daily reports
+Excel download
+PDF download
+
+5.2 Not Included in MVP
+Excluded Capability
+Manual shunting job planning
+Route planning
+Point-machine integration
+Interlocking integration
+Automatic brake application
+Complex approval workflows
+Live graphical yard map
+Artificial-intelligence analytics
+Predictive maintenance
+Camera analytics
+Mobile application
+Automatic staff attendance
+Firmware deployment from the application
+Advanced coupling analytics
+Railway ERP integration
+
+6. User Roles
+Role
+Access
+Super Administrator
+Access to all yards, devices, users, reports and settings.
+Yard Administrator
+Access to assigned yard, lines, devices and issue/return.
+Maintenance User
+Access to device health, SIM and maintenance details.
+Viewer / Control Room User
+Read-only access to dashboard, live operations, health and reports.
+
+A separate complex permission-management screen is not required initially. Role permissions may be maintained in the backend.
+7. Simplified Main Menu
+Screen
+Purpose
+Dashboard
+Overall summary
+Yard Configuration
+Yard and line setup
+Device Registration and Management
+Register and maintain devices
+Device Issue / Return
+Issue portable devices to employees
+Live Operations
+View active LD-DE sessions
+Device Health
+Monitor heartbeat and faults
+Session History / Audit
+View completed sessions
+Reports
+Download Excel and PDF reports
+
+Total MVP UIOne Login screen plus eight main application screens.
+
+8. End-to-End Product Flow
+User Logs In        ↓Administrator Creates Yard        ↓Administrator Adds Pit Lines, Stabling Lines and Other Lines        ↓Each Line Automatically Includes One Dead End        ↓Administrator Registers Devices        ↓Dead-End Device Is Assigned to a Specific Line        ↓Portable Devices Are Added to the Yard Device Pool        ↓Portable Device Is Issued to a Pointsman/Shunter        ↓Devices Power On and Send Heartbeat Automatically        ↓LD Connects with DE        ↓Software Automatically Starts a Session        ↓Live Distance, Connection and Alert Data Is Displayed        ↓LD Disconnects or Session Times Out        ↓Session Automatically Closes        ↓Portable Device Is Returned        ↓Session, Health and Failure Reports Are Generated
+
+9. Screen 1 – Login
+Purpose: Allow authorised users to access the application.
+Field
+Mandatory
+Username / Employee ID
+Yes
+Password
+Yes
+Remember Login
+No
+Application Version
+Display
+Server Status
+Display
+
+Actions and Logic
+Login, Forgot Password and Show Password actions.
+User must be active and have a valid role.
+Yard-level users see only assigned yards.
+Failed and successful login attempts are audited.
+10. Screen 2 – Dashboard
+Purpose: Give the user a quick view of yards, devices, health, live sessions and alerts.
+Summary Cards
+Card
+Total Yards
+Total Registered Devices
+Total Dead-End Devices
+Healthy Dead-End Devices
+Offline Dead-End Devices
+Portable Devices Issued
+Active Shunting Sessions
+Missed Heartbeat Alerts
+SIM Recharge Due
+Maintenance Due
+
+Yard Summary Grid
+Field
+Yard Name
+Total Lines
+Total DE Devices
+Healthy DE Devices
+Offline DE Devices
+Portable Devices Issued
+Active Sessions
+Open Alerts
+View Yard
+
+Active Sessions Section
+Field
+Session ID
+Yard
+Employee
+LD Code
+DE Code
+Line
+Start Time
+Current Distance
+Current Status
+Last Data Time
+View Live
+
+Dashboard Logic
+Dashboard refreshes automatically.
+Last data time is always shown.
+Stale data is not displayed as current.
+Offline devices are clearly highlighted.
+Yard, live-session and health links navigate directly to the relevant screens.
+11. Screen 3 – Yard Configuration
+Purpose: Create a yard and configure all its lines. Yard details, line list, add/edit line and current Dead-End Device assignment are managed on the same screen. A separate Dead-End Location screen is not required.
+11.1 Yard Fields
+Field
+Description
+Yard UUID
+System-generated
+Yard Code
+Short code
+Yard Name
+Name of yard
+Station
+Railway station
+Division
+Predefined dropdown
+Zone
+Predefined dropdown
+Yard Type
+Coaching, Freight, Depot, Mixed or Other
+Yard Status
+Active or Inactive
+Remarks
+Optional
+
+11.2 Line Configuration Fields
+Field
+Description
+Line UUID
+System-generated
+Line Type
+Pit Line, Stabling Line, Siding or Other
+Line Number
+Railway line number
+Line Name
+User-friendly name
+Dead-End Name
+Automatically suggested but editable
+GPS Latitude / Longitude
+Optional
+Approach Direction
+Optional
+Warning / Slow / Stop Distance
+Optional and configurable
+Assigned DE Device
+Current active device
+Line Status
+Active or Inactive
+Remarks
+Optional
+
+Example
+Line Type
+Line Name
+Dead-End Name
+Device
+Pit Line
+Pit Line 1
+Pit Line 1 Dead End
+DE01
+Pit Line
+Pit Line 2
+Pit Line 2 Dead End
+DE02
+Stabling Line
+Stabling Line 1
+Stabling Line 1 Dead End
+DE03
+
+11.3 Yard and Line Logic
+One yard can contain multiple lines.
+Every line has exactly one dead end.
+The dead end is part of the line record.
+The user must not enter a number of dead ends.
+A line cannot have multiple active DE devices.
+One DE device cannot be assigned to multiple lines simultaneously.
+Device replacement ends the old assignment, preserves history and assigns the new device.
+A line may remain without a DE temporarily.
+Inactive lines cannot accept new device assignments.
+A yard cannot be deleted if historical sessions exist.
+Actions
+Action
+Create Yard
+Edit Yard
+Add Line
+Edit Line
+Assign DE Device
+Replace DE Device
+Remove DE Assignment
+Activate / Deactivate Line
+
+12. Screen 4 – Device Registration and Management
+Purpose: Provide one common screen to register and manage all devices within a yard. The screen contains a device list, Add Device action, device detail form and contextual actions.
+12.1 Device List Filters
+Filter
+Yard
+Device Type
+Device Code
+Line
+Status
+Online / Offline
+SIM Operator
+SIM Expiry
+Maintenance Status
+
+12.2 Device List Columns
+Field
+Device UUID
+Device Code
+Device Type
+Device Name
+Yard
+Assigned Line
+Serial Number
+Online Status
+Last Heartbeat
+SIM Operator
+SIM Valid Until
+Device Status
+Current Holder
+Actions
+
+12.3 Common Registration Fields
+Field
+Mandatory
+Device UUID
+Yes
+Device Code
+Yes
+Device Type
+Yes
+Device Name
+Yes
+Serial Number
+Yes
+Yard
+Yes
+Registration Date
+Yes
+Installation Date
+Conditional
+Firmware Version
+No
+RF Available
+Yes
+GSM Available
+Yes
+Device Status
+Yes
+Remarks
+No
+
+Device Type Options
+Device Type
+Dead-End Device
+Loco Device
+Pointsman Device
+Coupling Device
+
+12.4 SIM Details
+Field
+Mandatory
+SIM Available
+Yes
+SIM Number
+Yes
+SIM Operator
+Yes
+SIM ICCID
+No
+SIM Activation Date
+No
+Last Recharge Date
+No
+Recharge Valid Until
+Yes
+Recharge Plan
+No
+SIM Status
+Yes
+Recharge Reminder Days
+No
+Remarks
+No
+
+12.5 Dead-End Device Fields
+Field
+Mandatory / Source
+Assigned Yard
+Yes
+Assigned Line
+Yes
+Dead-End Name
+Auto-populated
+GPS Latitude / Longitude
+Auto-populated or editable
+Power Source
+Yes
+Power Status
+Device data
+Sensor Available
+Yes
+Camera Available
+Optional
+RF Available
+Yes
+GSM Available
+Yes
+Warning / Slow / Stop Distance
+Yes
+Installation Date
+Yes
+Last Maintenance Date
+Optional
+Next Maintenance Date
+Yes
+
+DE Power ModelDead-End Devices are powered devices. Main battery-replacement fields are not required initially unless a backup battery is introduced.
+
+12.6 Portable Device Fields
+Field
+Mandatory / Source
+Portable Device
+Yes
+Yard Device Pool
+Yes
+Battery Available
+Yes
+Battery Type
+Optional
+Battery Installation Date
+Optional
+Battery Replacement Due Date
+Optional
+Charging Method
+Optional
+Current Issue Status
+Display
+Current Holder
+Display
+Last Issue Time
+Display
+Last Return Time
+Display
+
+12.7 Registration Validations
+Device UUID must be unique.
+Device Code must be unique within a yard.
+Serial Number must be unique.
+A DE cannot be activated without a line assignment.
+A portable device cannot be assigned to a fixed line.
+A DE cannot be assigned to more than one line.
+One line cannot have more than one active DE.
+An inactive or faulty device cannot participate in a session.
+A device cannot be deleted once operational history exists.
+Device changes are audited.
+13. Screen 5 – Device Issue / Return
+Purpose: Record which authorised employee took a portable device and when it was returned. This applies to LD, PD and CD.
+13.1 Issue Fields
+Field
+Description
+Issue Record ID
+System-generated
+Yard
+Selected yard
+Employee Name
+Pointsman, Shunter or Loco Pilot
+Employee ID
+Railway ID
+Designation
+User designation
+Device Type
+LD, PD or CD
+Device Code
+Selected portable device
+Issue Date / Time
+Actual issue timestamp
+Expected Return Time
+Optional
+Device Condition at Issue
+Good, Damaged or Other
+Battery Percentage at Issue
+Optional or device data
+SIM Status
+Auto-displayed
+Issued By
+Application user
+Remarks
+Optional
+
+13.2 Return Fields
+Field
+Description
+Return Date / Time
+Actual return timestamp
+Device Condition at Return
+Good, Damaged or Faulty
+Battery Percentage at Return
+Optional
+Fault Reported
+Yes or No
+Fault Description
+Conditional
+Received By
+Application user
+Remarks
+Optional
+
+13.3 Issue / Return Logic
+Only Available portable devices can be issued.
+A device cannot have more than one open issue record.
+One employee may be issued more than one device type where permitted.
+All sessions during the issue period are linked to that issue record.
+A session may still be created without an issue record, but the employee is shown as Unassigned and an alert may be created.
+The issue record closes only after return.
+Overdue returns are highlighted.
+A faulty returned device is marked Faulty or Under Maintenance.
+Historical issue records cannot be deleted.
+14. Automatic Device Data Flow
+14.1 Device Startup
+Device Powered On        ↓Device Connects to GSM        ↓Device Sends UUID and Heartbeat        ↓Cloud Validates Device        ↓Device Is Marked Online        ↓Health and Operational Data Is Received Automatically
+
+14.2 Minimum Heartbeat Payload
+Field
+Device UUID
+Device Type
+Device Timestamp
+Yard Identifier
+Online Status
+GSM Status
+RF Status
+Power Status
+Sensor Status
+Firmware Version
+Fault Code
+Connected Device UUID
+Cloud Receipt Time
+
+14.3 Unknown Device Logic
+An unregistered UUID does not create a valid session.
+The message is stored in an unknown-device log.
+An Unknown Device alert is generated.
+The administrator may register the device later.
+The device is not automatically assigned to a yard.
+15. Automatic Shunting Session Logic
+15.1 Session Start
+A shunting session starts automatically when all of the following conditions are met:
+An LD connects with a DE.
+Both UUIDs are registered.
+Both devices are Active.
+Both devices belong to the same yard.
+The DE is assigned to an active line.
+A valid connection-start event is received.
+15.2 Session Fields
+Field
+Session UUID
+Session Number
+Date
+Yard
+Employee
+Device Issue Record
+LD UUID
+LD Code
+DE UUID
+DE Code
+Line
+Dead-End Name
+Session Start Time
+Session End Time
+Duration
+Minimum Distance
+Final Placement Distance
+Alerts Generated
+Communication Failure
+Session Status
+
+15.3 Session End
+A session ends when a device-disconnection event is received or when no communication is received for the configured inactivity timeout. The suggested initial timeout is 5 minutes, configurable between 5 and 10 minutes.
+15.4 Final Placement Distance Logic
+DefinitionFinal Placement Distance is the last valid and stable distance received from the Dead-End Device before the session ends. Minimum Distance Recorded and Final Placement Distance must be stored separately.
+
+A distance is considered stable when similar readings are received over a configurable number of samples or when the device reports that movement has stopped.
+15.5 Session Status
+Status
+Active
+Completed
+Auto-Closed
+Communication Lost
+Incomplete
+Device Fault
+Manually Closed
+
+Manual closure is restricted to authorised users and requires a reason.
+16. Screen 6 – Live Operations
+Purpose: Automatically show every active LD-DE communication session. No Create Operation button is required.
+16.1 Summary Cards
+Card
+Active Sessions
+Active LD Devices
+Connected DE Devices
+Communication-Lost Sessions
+Warning Events
+Critical Events
+
+16.2 Live Session Grid
+Field
+Session ID
+Yard
+Employee
+LD Code
+DE Code
+Line
+Start Time
+Duration
+Current Distance
+Current Zone
+LD Status
+DE Status
+RF Status
+GSM Status
+Last Data Time
+Session Status
+View Live
+
+16.3 Live Session Detail
+Header Field
+Session ID
+Yard
+Employee Name
+LD Device
+DE Device
+Line
+Dead-End Name
+Start Time
+Duration
+Session Status
+
+LTT YARD – PIT LINE 1LD01 CONNECTED WITH DE01CURRENT DISTANCE: 42 METRESCURRENT STATUS: SLOW ZONELAST DATA RECEIVED: 5 SECONDS AGO
+
+Live Data Field
+Current Distance
+Previous Distance
+Minimum Distance
+Current Speed, where available
+Movement Direction
+Warning Distance
+Slow Distance
+Stop Distance
+Current Zone
+Latest Alert
+Latest Alert Time
+LD Acknowledgement
+RF Connection
+GSM Connection
+DE Power Status
+DE Sensor Status
+Last Data Time
+
+Timeline Events
+Example Event
+LD01 connected with DE01
+Distance entered warning zone
+Warning sent to LD
+Warning acknowledged
+Distance entered slow zone
+Communication temporarily lost
+Communication restored
+Final distance recorded
+LD disconnected
+Session closed
+
+17. Screen 7 – Device Health
+Purpose: Monitor the working condition of all fixed Dead-End Devices. The primary health indicator is the 30-minute heartbeat.
+17.1 Health Summary Cards
+Card
+Total DE Devices
+Healthy
+Heartbeat Delayed
+Warning
+Offline
+Critical Failure
+Sensor Fault
+Power Failure
+SIM Issue
+
+17.2 Health Grid
+Field
+DE Code
+Yard
+Line
+Dead-End Name
+Power Status
+GSM Status
+RF Status
+Sensor Status
+Last Heartbeat
+Time Since Last Heartbeat
+Heartbeats Expected Today
+Heartbeats Received Today
+Missed Heartbeats
+Health Status
+Active Alert
+
+17.3 Default Heartbeat Logic
+Condition
+Health Status
+Heartbeat received within 45 minutes
+Healthy
+No heartbeat for 45–60 minutes
+Delayed
+No heartbeat for 60–120 minutes
+Warning
+No heartbeat for more than 120 minutes
+Offline
+No heartbeat for more than 180 minutes
+Critical Failure
+
+All timings should remain configurable in the backend.
+17.4 Device Health Alerts
+Alert
+Heartbeat delayed
+One or more heartbeats missed
+Device offline for two hours
+Device offline for three hours
+Power failure
+GSM failure
+RF failure
+Sensor failure
+SIM expired
+Firmware mismatch
+
+Health Logic
+Health status is calculated automatically.
+Restored heartbeat updates the current status to Healthy.
+The previous outage remains in failure history.
+Repeated outages appear in the daily failure report.
+Last heartbeat is always displayed.
+Device-health data is separate from operational-session data.
+18. Screen 8 – Session History / Audit
+Purpose: Maintain a permanent record of all completed and active sessions.
+18.1 Filters
+Filter
+From Date
+To Date
+Yard
+Employee
+LD Device
+DE Device
+Line
+Session Status
+Communication Failure
+Alert Type
+
+18.2 Session Grid
+Field
+Session ID
+Date
+Yard
+Employee
+LD Code
+DE Code
+Line
+Start Time
+End Time
+Duration
+Minimum Distance
+Final Placement Distance
+Alerts
+Communication Failure
+Final Status
+View
+
+18.3 Session Detail
+Field
+Session UUID
+Yard
+Employee
+Employee ID
+Device Issue Time
+Device Return Time
+LD Code
+DE Code
+Line
+Dead-End Name
+Session Start
+Session End
+Duration
+Minimum Distance
+Final Placement Distance
+Warning Count
+Communication Failure Count
+Final Session Status
+Review Remarks
+
+Audit Rules
+Session records cannot be deleted by normal users.
+Device transfer does not change old session data.
+Device replacement does not change old records.
+Old line and yard names remain visible as they existed during the session.
+Manual modifications are audited.
+Reports are generated from session history.
+19. Screen 9 – Reports
+Purpose: Provide daily and historical reports in Excel and PDF.
+19.1 Common Filters
+Filter
+From Date
+To Date
+Yard
+Employee
+Device Type
+Device Code
+Line
+Session Status
+Device Health
+SIM Status
+Maintenance Status
+
+19.2 Daily Shunting Session Report
+Column
+Date
+Yard
+Employee
+LD Device
+DE Device
+Line
+Session Start
+Session End
+Duration
+Minimum Distance
+Final Placement Distance
+Warning Count
+Communication Failure
+Final Status
+
+19.3 Employee-Wise Device Usage Report
+Column
+Employee Name
+Employee ID
+Device Issued
+Issue Time
+Return Time
+DE Devices Connected
+Number of Sessions
+Total Session Duration
+Communication Failures
+
+19.4 Loco Device Report
+Column
+LD Code
+Yard
+Employee
+Issue Time
+Return Time
+DE Devices Connected
+Number of Sessions
+Minimum Distance
+Total Duration
+Failure Count
+
+19.5 Dead-End Device Usage Report
+Column
+DE Code
+Yard
+Line
+Dead-End Name
+Number of LD Connections
+Connected LD Codes
+First Session
+Last Session
+Minimum Distance
+Total Sessions
+Final Device Status
+
+19.6 Daily Device Health Report
+Column
+Date
+Yard
+DE Code
+Line
+Expected Heartbeats
+Received Heartbeats
+Missed Heartbeats
+Last Heartbeat
+Power Status
+GSM Status
+RF Status
+Sensor Status
+Final Health Status
+
+19.7 Device Failure Report
+Column
+Device
+Yard
+Line
+Failure Type
+Failure Start
+Failure End
+Failure Duration
+Last Heartbeat
+Current Status
+Resolution Remarks
+
+19.8 Device Inventory Report
+Column
+Device UUID
+Device Code
+Device Type
+Yard
+Assigned Line
+Serial Number
+Installation Date
+SIM Number
+SIM Operator
+SIM Valid Until
+Device Status
+Last Communication
+
+19.9 SIM and Maintenance Report
+Column
+Device
+Device Type
+Yard
+SIM Number
+Operator
+Valid Until
+SIM Status
+Last Maintenance
+Next Maintenance
+Maintenance Status
+
+19.10 Coupling Report – Future
+Column
+Date
+Yard
+Employee
+Coupling Device
+Session Start
+Session End
+Number of Coupling Operations
+Connected Device
+Final Status
+
+Download and Report Rules
+Download Excel, Download PDF and Print actions.
+All filters apply to downloaded reports.
+PDF includes title, date range, yard, generated-by user and generation timestamp.
+Excel contains clean headers.
+Reports use actual session and health data.
+Daily reports are available without manual operational data entry.
+20. Alerts
+Operational Alerts
+Alert
+Warning-zone entry
+Slow-zone entry
+Stop-zone entry
+LD-DE communication lost
+Invalid LD-DE connection
+Cross-yard connection attempt
+Session incomplete
+Final placement distance below configured limit
+
+Device Alerts
+Alert
+Device offline
+Heartbeat missed
+Power failure
+Sensor fault
+GSM failure
+RF failure
+Unknown UUID
+SIM expired
+
+Administrative Alerts
+Alert
+Portable device not returned
+SIM recharge due
+Maintenance due
+Maintenance overdue
+Device replacement due
+
+Alert Status
+Open
+Acknowledged
+Resolved
+Auto-Resolved
+
+21. Device and Data Relationships
+ZONE  └── DIVISION       └── STATION            └── YARD                 ├── MANY LINES                 │    └── ONE DEAD END PER LINE                 │         └── ZERO OR ONE ACTIVE DE DEVICE                 │                 ├── MANY PORTABLE DEVICES                 │    ├── LD                 │    ├── PD                 │    └── CD                 │                 ├── DEVICE ISSUE RECORDS                 │    └── ONE EMPLOYEE + ONE PORTABLE DEVICE                 │                 └── SHUNTING SESSIONS                      ├── ONE LD                      ├── ONE DE                      ├── ONE LINE                      └── ZERO OR ONE ISSUE RECORD
+
+22. Cardinality Rules
+Parent
+Relationship
+Child
+Zone
+One-to-Many
+Divisions
+Division
+One-to-Many
+Stations
+Station
+One-to-Many
+Yards
+Yard
+One-to-Many
+Lines
+Line
+Exactly One
+Dead End
+Line
+Zero or One Active
+Dead-End Device
+Yard
+One-to-Many
+Devices
+Employee
+One-to-Many
+Issue Records
+Portable Device
+One-to-Many over time
+Issue Records
+LD
+One-to-Many
+Sessions
+DE
+One-to-Many
+Sessions
+Session
+One
+LD
+Session
+One
+DE
+Session
+One
+Line
+Device
+One-to-Many
+Heartbeats
+Device
+One-to-Many
+Maintenance Records
+Device
+One-to-Many
+Audit Records
+
+23. Minimum Logical Database Entities
+Entity
+Purpose
+users
+Application users
+yards
+Yard master
+yard_lines
+Line and dead-end details
+devices
+LD, DE, PD and CD registration
+device_sim_details
+SIM and recharge data
+device_line_assignments
+DE installation history
+device_issue_returns
+Portable-device issue and return
+device_heartbeats
+Heartbeat history
+device_health_status
+Latest calculated health
+shunting_sessions
+Automatic LD-DE sessions
+session_events
+Connection, distance and alert events
+alerts
+Operational and device alerts
+maintenance_records
+Maintenance history
+audit_logs
+User and system audit
+report_history
+Generated report records
+
+24. Audit Requirements
+24.1 User Audit
+Audited Action
+Login
+Logout
+Yard created or edited
+Line added or edited
+Device registered
+Device edited
+Device assigned to line
+Device replaced
+Device issued
+Device returned
+SIM updated
+Maintenance recorded
+Session manually closed
+Report downloaded
+
+24.2 Device Audit
+Audited Event
+Device online
+Device offline
+Heartbeat received
+Heartbeat missed
+LD connected with DE
+LD disconnected from DE
+Warning generated
+Distance received
+Communication lost
+Communication restored
+Session created
+Session closed
+
+Audit RetentionAudit logs must not be deletable through normal user access.
+
+25. Non-Functional Requirements
+25.1 Performance
+Dashboard loads within a reasonable operational time.
+Live sessions update without page refresh.
+Health status updates automatically.
+List screens support search, filters and pagination.
+Excel and PDF generation support large date ranges.
+25.2 Security
+Role-based access
+Secure login
+Password policy
+Session timeout
+Device UUID validation
+Encrypted cloud communication
+Audit logs
+Restricted administrative actions
+25.3 Data Integrity
+Duplicate messages do not create duplicate sessions.
+Duplicate connection events are ignored.
+Original device timestamp and cloud receipt time are stored.
+Device replacement does not alter history.
+Line changes do not modify completed session records.
+25.4 Availability
+Devices continue local RF communication when GSM is unavailable.
+Offline events are uploaded after GSM restoration where supported.
+The application clearly shows stale data.
+Last communication time is always visible.
+25.5 Scalability
+Multiple zones, divisions, stations and yards
+Multiple lines and DE devices per yard
+Multiple portable devices per yard
+Multiple simultaneous sessions
+Long-term audit history
+26. Business Rules
+Zone and Division are predefined values.
+A yard must be created before lines or devices are registered.
+One yard can contain multiple lines.
+Every line has exactly one dead end.
+Dead-end details are stored within the line.
+One line can have only one active DE device.
+Every device must belong to a yard.
+A DE must be assigned to a line.
+Portable devices are not permanently assigned to a line.
+Portable devices are issued to an employee.
+A device cannot be issued to two employees simultaneously.
+An LD-DE connection automatically creates a session.
+No manual operation creation is required.
+One session contains one LD and one DE.
+An LD connecting to another DE creates another session.
+Sessions are linked to the active issue record.
+Session closure is automatic after disconnection or timeout.
+DE heartbeat is expected every 30 minutes.
+Missing heartbeats create health alerts.
+Device and session history cannot be deleted.
+Excel and PDF reports must be available.
+DE devices are powered devices.
+LD TFT/HMI is part of the LD and not separately registered.
+Initial deployment may use only LD and DE.
+PD and CD remain available for future activation.
+27. MVP Acceptance Criteria
+Area
+Acceptance Requirement
+Yard
+User can create multiple yards.
+Line
+User can create multiple lines under a yard.
+Dead End
+Every line automatically has one dead end.
+Device Registration
+User can register LD, DE, PD and CD.
+DE Assignment
+DE can be assigned to one line.
+One-to-One Rule
+A line cannot have two active DE devices.
+Portable Pool
+LD, PD and CD remain portable within a yard.
+Issue / Return
+User can record who took and returned a device.
+Device Startup
+Powered-on devices automatically send data.
+Heartbeat
+DE heartbeat is received every 30 minutes.
+Health
+Device health is calculated from heartbeat.
+Alerts
+Missed heartbeat and failure alerts are shown.
+Session Start
+LD-DE connection automatically creates a session.
+Session End
+Disconnection or timeout closes a session.
+Distance
+Minimum and final placement distances are stored.
+Live View
+Active session is visible live.
+Audit
+Every connection and session is recorded.
+History
+Device replacement does not change old records.
+Reports
+Excel and PDF reports can be downloaded.
+Access
+Yard users see only authorised yards.
+
+28. Recommended Development Stages
+Stage
+Scope
+Stage 1 – Yard and Device Setup
+Login; yard creation; line configuration; device registration; DE-to-line assignment; SIM details; device inventory.
+Stage 2 – Portable Device Management
+Employee details; device issue; device return; device condition; active-holder status.
+Stage 3 – Cloud Device Integration
+Device heartbeat; online/offline status; UUID validation; power and sensor status; unknown-device handling.
+Stage 4 – Automatic Sessions
+LD-DE connection detection; session creation; distance data; final placement distance; automatic closure; Live Operations.
+Stage 5 – Health, Audit and Reports
+Heartbeat-health calculation; device alerts; session audit; health and session reports; Excel and PDF downloads.
+
+29. Future Enhancements
+Future Capability
+Full Pointsman Device workflow
+Coupling Device workflow
+Coupling operation count and analytics
+Camera feed
+Yard map
+GPS tracking
+Mobile application
+SMS and email alerts
+Predictive maintenance
+Firmware updates
+Advanced user permissions
+Shift and roster management
+Railway system integration
+Automated daily email reports
+Multi-language support
+Device performance analytics
+
+30. Final Product Summary
+The Shunting Safety Software will be a simple yard-centric platform. The permanent configuration is:
+Yard  ↓Multiple Lines  ↓Exactly One Dead End Per Line  ↓One Active Dead-End Device
+
+Portable devices belong to the yard device pool and are issued to authorised staff. An actual shunting activity is identified automatically when:
+Loco Device Connects with Dead-End Device        ↓Session Starts Automatically        ↓Live Data Is Shown        ↓Distance and Alerts Are Recorded        ↓Devices Disconnect        ↓Session Ends Automatically        ↓Audit and Reports Are Generated
+
+The application must provide clear answers to the following questions:
+Which yards are configured?
+What lines exist in each yard?
+Which Dead-End Device is installed on each line?
+Which portable devices belong to the yard?
+Who took a portable device?
+When was it issued and returned?
+Which LD connected with which DE?
+When did the session start and end?
+What was the final placement distance?
+Were there communication or device failures?
+When was the last heartbeat received?
+Which devices are healthy or offline?
+Which SIMs and maintenance activities are due?
+Can the complete daily record be downloaded in Excel or PDF?
+MVP OutcomeA focused application for yard configuration, device registration, automatic shunting-session monitoring, Dead-End Device health verification, audit history and downloadable reports.
