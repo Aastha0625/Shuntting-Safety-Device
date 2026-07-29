@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_drawer.dart';
+import '../services/api_service.dart';
 
 class IssueReturnScreen extends StatefulWidget {
   const IssueReturnScreen({super.key});
@@ -11,37 +12,45 @@ class IssueReturnScreen extends StatefulWidget {
 
 class _IssueReturnScreenState extends State<IssueReturnScreen> {
   bool _isLoading = true;
-  List<Map<String, dynamic>> _availableDevices = [];
-  List<Map<String, dynamic>> _issuedDevices = [];
+  List<dynamic> _availableLDs = [];
+  List<dynamic> _activeSessions = [];
+  List<dynamic> _locoPilots = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchMockData();
+    _fetchData();
   }
 
-  Future<void> _fetchMockData() async {
+  Future<void> _fetchData() async {
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 700));
 
-    _availableDevices = [
-      {'code': 'LD-005', 'type': 'Loco Unit', 'battery': '92%', 'condition': 'Good', 'sim': 'Active'},
-      {'code': 'PD-022', 'type': 'Portable', 'battery': '100%', 'condition': 'Good', 'sim': 'Active'},
-      {'code': 'CD-014', 'type': 'Coupling', 'battery': '88%', 'condition': 'Good', 'sim': 'Active'},
-    ];
+    final devicesResult = await ApiService.fetchDevices();
+    final usersResult = await ApiService.fetchUsers();
+    final sessionsResult = await ApiService.fetchSessions(status: 'live');
 
-    _issuedDevices = [
-      {
-        'code': 'LD-001', 'type': 'Loco Unit', 'employee': 'Rajesh Kumar', 'id': 'EMP-1102',
-        'designation': 'Loco Pilot', 'issueTime': '08:15 AM', 'battery': '45%'
-      },
-      {
-        'code': 'PD-011', 'type': 'Portable', 'employee': 'Amit Singh', 'id': 'EMP-2294',
-        'designation': 'Shunter', 'issueTime': '09:30 AM', 'battery': '60%'
-      },
-    ];
+    if (mounted) {
+      if (devicesResult['success']) {
+         final allDevices = devicesResult['data'] as List<dynamic>;
+         // LD units that are NOT in an active session (issued)
+         _availableLDs = allDevices.where((d) => d['device_type'] == 'Loco Unit').toList();
+      }
+      
+      if (usersResult['success']) {
+         final allUsers = usersResult['data'] as List<dynamic>;
+         _locoPilots = allUsers.where((u) => u['role'] == 'viewer' || u['role'] == 'yard_admin').toList();
+      }
 
-    if (mounted) setState(() => _isLoading = false);
+      if (sessionsResult['success']) {
+         _activeSessions = sessionsResult['data'] as List<dynamic>;
+         
+         // Filter out available LDs that are already in active sessions
+         final activeLDCodes = _activeSessions.map((s) => s['ldDevice']).toList();
+         _availableLDs.removeWhere((d) => activeLDCodes.contains(d['device_code']));
+      }
+
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -52,7 +61,7 @@ class _IssueReturnScreenState extends State<IssueReturnScreen> {
         backgroundColor: AppTheme.backgroundColor,
         drawer: const AppDrawer(),
         appBar: AppBar(
-          title: const Text('Issue & Return', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          title: const Text('Issue / Return Devices', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           iconTheme: const IconThemeData(color: Colors.white),
           flexibleSpace: Container(
             decoration: const BoxDecoration(
@@ -69,90 +78,150 @@ class _IssueReturnScreenState extends State<IssueReturnScreen> {
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white60,
             tabs: [
-              Tab(icon: Icon(Icons.outbox), text: 'AVAILABLE POOL'),
-              Tab(icon: Icon(Icons.assignment_ind), text: 'CURRENTLY ISSUED'),
+              Tab(icon: Icon(Icons.outbox), text: 'ISSUE DEVICE'),
+              Tab(icon: Icon(Icons.move_to_inbox), text: 'RETURN DEVICE'),
             ],
           ),
+          actions: [
+            IconButton(icon: const Icon(Icons.refresh), onPressed: _fetchData)
+          ],
         ),
-        body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+        body: _isLoading 
+            ? const Center(child: CircularProgressIndicator()) 
             : TabBarView(
                 children: [
-                  _buildAvailableTab(),
-                  _buildIssuedTab(),
+                  _buildIssueTab(),
+                  _buildReturnTab(),
                 ],
               ),
       ),
     );
   }
 
-  Widget _buildAvailableTab() {
-    if (_availableDevices.isEmpty) {
-      return const Center(child: Text('No devices available in the pool.', style: TextStyle(color: AppTheme.subtitleColor)));
-    }
-    
-    return ListView.builder(
-      padding: const EdgeInsets.all(16.0),
-      itemCount: _availableDevices.length,
-      itemBuilder: (context, index) {
-        final device = _availableDevices[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12.0),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          elevation: 2,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.blue.shade50, shape: BoxShape.circle),
-                  child: const Icon(Icons.memory, color: Colors.blueAccent),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(device['code'], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
-                      const SizedBox(height: 4),
-                      Text('${device['type']} • Battery: ${device['battery']}', style: const TextStyle(fontSize: 12, color: AppTheme.subtitleColor)),
-                    ],
+  Widget _buildIssueTab() {
+    String? selectedDeviceId;
+    String? selectedUserId;
+    final remarksController = TextEditingController();
+    bool isSubmitting = false;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: StatefulBuilder(
+        builder: (context, setTabState) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('Issue Loco Unit to Pilot', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+              const SizedBox(height: 8),
+              const Text('Select an available LD unit and assign it to a shunter or loco pilot for the shift.', style: TextStyle(color: AppTheme.subtitleColor)),
+              const SizedBox(height: 24),
+              
+              _buildDropdownLabel('Select Available LD Unit'),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: AppTheme.borderColor)),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    isExpanded: true,
+                    value: selectedDeviceId,
+                    hint: const Text('Select a device'),
+                    items: _availableLDs.map((d) {
+                      return DropdownMenuItem<String>(value: d['id'].toString(), child: Text(d['device_code']));
+                    }).toList(),
+                    onChanged: (val) {
+                      setTabState(() => selectedDeviceId = val);
+                    },
                   ),
                 ),
-                InkWell(
-                  onTap: () => _showIssueForm(device['code'], device['type']),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.blueAccent,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text('ISSUE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 16),
+              
+              _buildDropdownLabel('Select Employee (Loco Pilot)'),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: AppTheme.borderColor)),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    isExpanded: true,
+                    value: selectedUserId,
+                    hint: const Text('Select an employee'),
+                    items: _locoPilots.map((u) {
+                      return DropdownMenuItem<String>(value: u['id'].toString(), child: Text("${u['full_name']} (${u['employee_id']})"));
+                    }).toList(),
+                    onChanged: (val) {
+                      setTabState(() => selectedUserId = val);
+                    },
                   ),
                 ),
-              ],
-            ),
-          ),
-        );
-      },
+              ),
+              const SizedBox(height: 16),
+              
+              _buildDropdownLabel('Remarks (Optional)'),
+              TextField(
+                controller: remarksController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  hintText: 'Enter any remarks or conditions...',
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppTheme.borderColor)),
+                ),
+              ),
+              const SizedBox(height: 32),
+              
+              ElevatedButton.icon(
+                onPressed: isSubmitting || selectedDeviceId == null || selectedUserId == null ? null : () async {
+                  setTabState(() => isSubmitting = true);
+                  final result = await ApiService.issueDevice(selectedDeviceId!, selectedUserId!, remarksController.text);
+                  
+                  if (mounted) {
+                     if (result['success']) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Device Issued successfully!')));
+                        _fetchData(); // Reset form and data
+                     } else {
+                        setTabState(() => isSubmitting = false);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'])));
+                     }
+                  }
+                },
+                icon: isSubmitting ? const SizedBox() : const Icon(Icons.outbox, color: Colors.white),
+                label: isSubmitting 
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('ISSUE DEVICE', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          );
+        }
+      ),
     );
   }
 
-  Widget _buildIssuedTab() {
-    if (_issuedDevices.isEmpty) {
-      return const Center(child: Text('No devices currently issued.', style: TextStyle(color: AppTheme.subtitleColor)));
+  Widget _buildReturnTab() {
+    if (_activeSessions.isEmpty) {
+       return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          SizedBox(height: 100),
+          Center(child: Text('No active device assignments to return.', style: TextStyle(color: AppTheme.subtitleColor)))
+        ],
+      );
     }
     
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16.0),
-      itemCount: _issuedDevices.length,
+      itemCount: _activeSessions.length,
       itemBuilder: (context, index) {
-        final device = _issuedDevices[index];
+        final session = _activeSessions[index];
+        
         return Card(
-          margin: const EdgeInsets.only(bottom: 12.0),
+          margin: const EdgeInsets.only(bottom: 16.0),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          elevation: 2,
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -163,36 +232,53 @@ class _IssueReturnScreenState extends State<IssueReturnScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.person, color: AppTheme.primaryColor),
+                        const Icon(Icons.train, color: AppTheme.primaryColor),
                         const SizedBox(width: 8),
-                        Text(device['employee'], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+                        Text(session['ldDevice'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.primaryColor)),
                       ],
                     ),
-                    Text(device['issueTime'], style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+                    Flexible(
+                      child: Text(
+                        "SES-${session['id'].toString().length > 8 ? session['id'].toString().substring(0, 8) : session['id']}", 
+                        style: const TextStyle(color: AppTheme.subtitleColor, fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const Divider(height: 24),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(child: _buildInfoCol('Device', device['code'])),
-                    Expanded(child: _buildInfoCol('ID', device['id'])),
-                    Expanded(child: _buildInfoCol('Role', device['designation'])),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Issued To', style: TextStyle(fontSize: 12, color: AppTheme.subtitleColor)),
+                        Text(session['holder'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        const Text('Issued At', style: TextStyle(fontSize: 12, color: AppTheme.subtitleColor)),
+                        Text(_formatTime(session['startTime']), style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
-                  child: InkWell(
-                    onTap: () => _showReturnForm(device['code'], device['employee']),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: AppTheme.primaryColor),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text('RETURN DEVICE', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
+                  child: ElevatedButton(
+                    onPressed: () => _showReturnDialog(session),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppTheme.primaryColor,
+                      side: const BorderSide(color: AppTheme.primaryColor),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
+                    child: const Text('PROCESS RETURN', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -203,177 +289,81 @@ class _IssueReturnScreenState extends State<IssueReturnScreen> {
     );
   }
 
-  Widget _buildInfoCol(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.subtitleColor)),
-        const SizedBox(height: 2),
-        Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
-      ],
-    );
-  }
-
-  void _showIssueForm(String code, String type) {
-    showModalBottomSheet(
+  void _showReturnDialog(dynamic session) {
+    final remarksController = TextEditingController();
+    bool isSubmitting = false;
+    
+    // We need the device_id to return it. Since session only gives device_code, we need to map it.
+    // However, the backend return API takes `device_id`.
+    // Let's modify ApiService.returnDevice to take device_code, OR we can look up the ID from _availableLDs. 
+    // Actually _availableLDs doesn't have it because it's issued. We should fetch all devices and find the ID.
+    
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Material(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        child: Container(
-          height: MediaQuery.of(context).size.height * 0.85,
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Issue $code', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
-                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
-                ],
-              ),
-              const Divider(),
-              Expanded(
-                child: ListView(
-                  children: [
-                    const SizedBox(height: 16),
-                    _buildTextField('Employee Name', 'e.g. Rahul Kumar'),
-                    const SizedBox(height: 16),
-                    _buildTextField('Employee ID', 'e.g. EMP-9821'),
-                    const SizedBox(height: 16),
-                    _buildDropdownField('Designation', ['Loco Pilot', 'Shunter', 'Pointsman', 'Other']),
-                    const SizedBox(height: 16),
-                    _buildDropdownField('Device Condition at Issue', ['Good', 'Damaged', 'Requires Charge']),
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$code Issued Successfully!')));
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueAccent,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: const Text('CONFIRM ISSUE', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                      ),
-                    ),
-                  ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: Text("Return ${session['ldDevice']}?"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Process the return of this device and end the active shunting session.'),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: remarksController,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    hintText: 'Any remarks on condition? (Optional)',
+                    filled: true,
+                    fillColor: AppTheme.backgroundColor,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showReturnForm(String code, String employee) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Material(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        child: Container(
-          height: MediaQuery.of(context).size.height * 0.6,
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Return $code', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
-                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
-                ],
-              ),
-              Text('Currently held by $employee', style: const TextStyle(color: AppTheme.subtitleColor)),
-              const Divider(),
-              Expanded(
-                child: ListView(
-                  children: [
-                    const SizedBox(height: 16),
-                    _buildDropdownField('Device Condition at Return', ['Good', 'Damaged', 'Faulty']),
-                    const SizedBox(height: 16),
-                    _buildDropdownField('Fault Reported?', ['No', 'Yes - Software', 'Yes - Hardware']),
-                    const SizedBox(height: 16),
-                    _buildTextField('Remarks (Optional)', 'Any additional notes...'),
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$code Returned Successfully!')));
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.deepOrange,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: const Text('CONFIRM RETURN', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTextField(String label, String hint) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.subtitleColor)),
-        const SizedBox(height: 8),
-        TextField(
-          decoration: InputDecoration(
-            hintText: hint,
-            filled: true,
-            fillColor: AppTheme.backgroundColor,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDropdownField(String label, List<String> options) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.subtitleColor)),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: AppTheme.backgroundColor,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              isExpanded: true,
-              value: options.first,
-              items: options.map((String value) {
-                return DropdownMenuItem<String>(value: value, child: Text(value));
-              }).toList(),
-              onChanged: (_) {},
+              ],
             ),
-          ),
-        ),
-      ],
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
+              TextButton(
+                onPressed: isSubmitting ? null : () async {
+                  setDialogState(() => isSubmitting = true);
+                  
+                  final result = await ApiService.returnDevice(session['id'].toString(), remarksController.text);
+                  if (mounted) {
+                     if (result['success']) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Device Returned Successfully!')));
+                        _fetchData();
+                     } else {
+                        setDialogState(() => isSubmitting = false);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'])));
+                     }
+                  }
+                },
+                child: isSubmitting
+                    ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text('RETURN', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        }
+      ),
+    );
+  }
+
+  String _formatTime(String? isoString) {
+    if (isoString == null) return '--:--';
+    try {
+      final date = DateTime.parse(isoString).toLocal();
+      return "${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
+    } catch (e) {
+      return "--:--";
+    }
+  }
+
+  Widget _buildDropdownLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.primaryColor)),
     );
   }
 }

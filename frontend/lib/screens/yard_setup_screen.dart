@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_drawer.dart';
+import '../services/api_service.dart';
 
 class YardSetupScreen extends StatefulWidget {
   const YardSetupScreen({super.key});
@@ -11,43 +12,35 @@ class YardSetupScreen extends StatefulWidget {
 
 class _YardSetupScreenState extends State<YardSetupScreen> {
   bool _isLoading = true;
-  List<Map<String, dynamic>> _yards = [];
+  List<dynamic> _yards = [];
+  List<dynamic> _unassignedDeadEnds = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchMockYards();
+    _fetchData();
   }
 
-  Future<void> _fetchMockYards() async {
+  Future<void> _fetchData() async {
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 700)); // Simulate API delay
     
-    _yards = [
-      {
-        'id': 'YRD-001',
-        'name': 'North Yard',
-        'station': 'Central Hub',
-        'type': 'Mixed',
-        'lines': [
-          {'id': 'LN-101', 'name': 'Pit Line 1', 'type': 'Pit Line', 'deName': 'Pit Line 1 Dead End', 'assignedDE': 'DE-042', 'status': 'Active'},
-          {'id': 'LN-102', 'name': 'Stabling Line 4', 'type': 'Stabling Line', 'deName': 'Stabling 4 Dead End', 'assignedDE': 'DE-019', 'status': 'Active'},
-          {'id': 'LN-103', 'name': 'Maintenance Line A', 'type': 'Maintenance', 'deName': 'Maint A Dead End', 'assignedDE': 'None', 'status': 'Inactive'},
-        ]
-      },
-      {
-        'id': 'YRD-002',
-        'name': 'South Yard',
-        'station': 'Central Hub',
-        'type': 'Freight',
-        'lines': [
-          {'id': 'LN-201', 'name': 'Siding 1', 'type': 'Siding', 'deName': 'Siding 1 Dead End', 'assignedDE': 'DE-012', 'status': 'Active'},
-          {'id': 'LN-202', 'name': 'Siding 2', 'type': 'Siding', 'deName': 'Siding 2 Dead End', 'assignedDE': 'DE-088', 'status': 'Active'},
-        ]
-      },
-    ];
+    final yardsResult = await ApiService.fetchYards();
+    final devicesResult = await ApiService.fetchDevices();
     
-    if (mounted) setState(() => _isLoading = false);
+    if (mounted) {
+      if (yardsResult['success']) {
+        setState(() {
+          _yards = yardsResult['data'];
+        });
+      }
+      
+      if (devicesResult['success']) {
+         final allDevices = devicesResult['data'] as List<dynamic>;
+         _unassignedDeadEnds = allDevices.where((d) => d['device_type'] == 'Dead-End' && d['assigned_line_id'] == null).toList();
+      }
+
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -72,10 +65,13 @@ class _YardSetupScreenState extends State<YardSetupScreen> {
         ),
         elevation: 4,
         shadowColor: Colors.black.withValues(alpha: 0.5),
+        actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _fetchData)
+        ],
       ),
       body: _isLoading 
           ? const Center(child: CircularProgressIndicator())
-          : _buildYardList(),
+          : RefreshIndicator(onRefresh: _fetchData, child: _buildYardList()),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddMenu,
         backgroundColor: Colors.blueAccent,
@@ -87,10 +83,17 @@ class _YardSetupScreenState extends State<YardSetupScreen> {
 
   Widget _buildYardList() {
     if (_yards.isEmpty) {
-      return const Center(child: Text('No yards configured yet.', style: TextStyle(color: AppTheme.subtitleColor)));
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          SizedBox(height: 100),
+          Center(child: Text('No yards configured yet.', style: TextStyle(color: AppTheme.subtitleColor)))
+        ],
+      );
     }
     
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16.0),
       itemCount: _yards.length,
       itemBuilder: (context, index) {
@@ -106,10 +109,10 @@ class _YardSetupScreenState extends State<YardSetupScreen> {
             backgroundColor: Colors.white,
             collapsedBackgroundColor: Colors.white,
             title: Text(
-              yard['name'],
+              yard['yard_name'] ?? 'Unknown Yard',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppTheme.primaryColor),
             ),
-            subtitle: Text('${yard['station']} • ${yard['type']} • ${lines.length} Lines', style: const TextStyle(color: AppTheme.subtitleColor, fontSize: 13)),
+            subtitle: Text("${yard['location'] ?? 'Unknown Location'} • ${yard['status']} • ${lines.length} Lines", style: const TextStyle(color: AppTheme.subtitleColor, fontSize: 13)),
             leading: const CircleAvatar(
               backgroundColor: Color(0xFFF1F5F9),
               child: Icon(Icons.factory, color: AppTheme.primaryColor),
@@ -126,7 +129,7 @@ class _YardSetupScreenState extends State<YardSetupScreen> {
                       children: [
                         const Text('CONFIGURED LINES', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.subtitleColor, letterSpacing: 1.0)),
                         TextButton.icon(
-                          onPressed: () => _showLineForm(),
+                          onPressed: () => _showLineForm(yard['id']),
                           icon: const Icon(Icons.add, size: 16),
                           label: const Text('Add Line'),
                           style: TextButton.styleFrom(foregroundColor: Colors.blueAccent),
@@ -150,9 +153,9 @@ class _YardSetupScreenState extends State<YardSetupScreen> {
     );
   }
 
-  Widget _buildLineItem(Map<String, dynamic> line) {
+  Widget _buildLineItem(dynamic line) {
     final bool isActive = line['status'] == 'Active';
-    final bool hasDevice = line['assignedDE'] != 'None';
+    final bool hasDevice = line['assigned_de'] != null;
     
     return Container(
       margin: const EdgeInsets.only(bottom: 12.0),
@@ -180,7 +183,7 @@ class _YardSetupScreenState extends State<YardSetupScreen> {
                   Icon(Icons.route, size: 18, color: isActive ? AppTheme.primaryColor : Colors.grey),
                   const SizedBox(width: 8),
                   Text(
-                    line['name'],
+                    line['line_name'] ?? 'Unknown Line',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isActive ? AppTheme.primaryColor : Colors.grey),
                   ),
                 ],
@@ -193,7 +196,7 @@ class _YardSetupScreenState extends State<YardSetupScreen> {
                   border: Border.all(color: isActive ? Colors.green.shade200 : Colors.grey.shade300),
                 ),
                 child: Text(
-                  line['status'],
+                  line['status'] ?? 'Unknown',
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isActive ? Colors.green.shade700 : Colors.grey.shade600),
                 ),
               ),
@@ -207,7 +210,7 @@ class _YardSetupScreenState extends State<YardSetupScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('Line Type', style: TextStyle(fontSize: 11, color: AppTheme.subtitleColor)),
-                    Text(line['type'], style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                    Text(line['line_type'] ?? 'N/A', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
                   ],
                 ),
               ),
@@ -216,8 +219,8 @@ class _YardSetupScreenState extends State<YardSetupScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Dead-End Target', style: TextStyle(fontSize: 11, color: AppTheme.subtitleColor)),
-                    Text(line['deName'], style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                    const Text('Line Code', style: TextStyle(fontSize: 11, color: AppTheme.subtitleColor)),
+                    Text(line['line_code'] ?? 'N/A', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
                   ],
                 ),
               ),
@@ -236,7 +239,7 @@ class _YardSetupScreenState extends State<YardSetupScreen> {
                   const SizedBox(width: 4),
                   const Text('Assigned Device: ', style: TextStyle(fontSize: 12, color: AppTheme.subtitleColor)),
                   Text(
-                    line['assignedDE'],
+                    hasDevice ? line['assigned_de'] : 'None',
                     style: TextStyle(
                       fontSize: 13, 
                       fontWeight: FontWeight.bold, 
@@ -247,7 +250,7 @@ class _YardSetupScreenState extends State<YardSetupScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.edit_note, size: 20, color: AppTheme.subtitleColor),
-                onPressed: () => _showAssignForm(line['name']),
+                onPressed: () => _showAssignForm(line),
                 tooltip: 'Edit Assignment',
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
@@ -282,16 +285,6 @@ class _YardSetupScreenState extends State<YardSetupScreen> {
                 _showYardForm();
               },
             ),
-            const Divider(),
-            ListTile(
-              leading: const CircleAvatar(backgroundColor: Color(0xFFF1F5F9), child: Icon(Icons.route, color: AppTheme.primaryColor)),
-              title: const Text('Line'),
-              subtitle: const Text('Add a new line to an existing yard'),
-              onTap: () {
-                Navigator.pop(context);
-                _showLineForm();
-              },
-            ),
           ],
         ),
       ),
@@ -300,211 +293,272 @@ class _YardSetupScreenState extends State<YardSetupScreen> {
   }
 
   void _showYardForm() {
+    final nameController = TextEditingController();
+    bool isSubmitting = false;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Material(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        child: Container(
-          height: MediaQuery.of(context).size.height * 0.75,
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Material(
+            color: Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            child: Container(
+              height: MediaQuery.of(context).size.height * 0.75,
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 24, right: 24, top: 24
+              ),
+              child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Create Yard', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Create Yard', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+                    IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+                  ],
+                ),
+                const Divider(),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      const SizedBox(height: 16),
+                      const Text('Yard Name', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.subtitleColor)),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: nameController,
+                        decoration: InputDecoration(
+                          hintText: 'e.g. North Yard',
+                          filled: true,
+                          fillColor: AppTheme.backgroundColor,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: isSubmitting ? null : () async {
+                            if (nameController.text.trim().isEmpty) return;
+                            setModalState(() => isSubmitting = true);
+                            final result = await ApiService.createYard(nameController.text.trim());
+                            if (mounted) {
+                               if (result['success']) {
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Yard Created!')));
+                                  _fetchData();
+                               } else {
+                                  setModalState(() => isSubmitting = false);
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'])));
+                               }
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blueAccent,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: isSubmitting 
+                           ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                           : const Text('SAVE YARD', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
-            const Divider(),
-            Expanded(
-              child: ListView(
+          ),
+        );
+        }
+      ),
+    );
+  }
+
+  void _showLineForm(int yardId) {
+    final nameController = TextEditingController();
+    final codeController = TextEditingController();
+
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Material(
+            color: Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            child: Container(
+              height: MediaQuery.of(context).size.height * 0.75,
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 24, right: 24, top: 24
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Add Line', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+                      IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+                    ],
+                  ),
+                  const Divider(),
+                  Expanded(
+                    child: ListView(
+                      children: [
+                        const SizedBox(height: 16),
+                        const Text('Line Name', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.subtitleColor)),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: nameController,
+                          decoration: InputDecoration(
+                            hintText: 'e.g. Pit Line 5',
+                            filled: true,
+                            fillColor: AppTheme.backgroundColor,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text('Line Code (Geo or identifier)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.subtitleColor)),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: codeController,
+                          decoration: InputDecoration(
+                            hintText: 'e.g. LN-05',
+                            filled: true,
+                            fillColor: AppTheme.backgroundColor,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: isSubmitting ? null : () async {
+                              if (nameController.text.trim().isEmpty || codeController.text.trim().isEmpty) return;
+                              setModalState(() => isSubmitting = true);
+                              final result = await ApiService.addYardLine(yardId, nameController.text.trim(), codeController.text.trim());
+                              if (mounted) {
+                                 if (result['success']) {
+                                    Navigator.pop(context);
+                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Line Created!')));
+                                    _fetchData();
+                                 } else {
+                                    setModalState(() => isSubmitting = false);
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'])));
+                                 }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blueAccent,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: isSubmitting 
+                             ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                             : const Text('SAVE LINE', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+      ),
+    );
+  }
+
+  void _showAssignForm(dynamic line) {
+    String? selectedDeviceId;
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Material(
+            color: Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            child: Container(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Assign DE to ${line['line_name']}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+                      IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+                    ],
+                  ),
+                  const Divider(),
                   const SizedBox(height: 16),
-                  _buildTextField('Yard Name', 'e.g. North Yard'),
-                  const SizedBox(height: 16),
-                  _buildTextField('Yard Code', 'e.g. NY-01'),
-                  const SizedBox(height: 16),
-                  _buildTextField('Station', 'e.g. Central Hub'),
-                  const SizedBox(height: 16),
-                  _buildDropdownField('Yard Type', ['Mixed', 'Freight', 'Coaching', 'Depot']),
-                  const SizedBox(height: 32),
+                  const Text('Select Unassigned Dead-End Device', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.subtitleColor)),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.backgroundColor,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: selectedDeviceId,
+                        hint: const Text('Select a device'),
+                        items: _unassignedDeadEnds.map((d) {
+                          return DropdownMenuItem<String>(value: d['id'].toString(), child: Text(d['device_code']));
+                        }).toList(),
+                        onChanged: (val) {
+                          setModalState(() => selectedDeviceId = val);
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mock Yard Created!')));
+                      onPressed: isSubmitting || selectedDeviceId == null ? null : () async {
+                        setModalState(() => isSubmitting = true);
+                        final result = await ApiService.assignDeviceToLine(selectedDeviceId!, line['id']);
+                        if (mounted) {
+                           if (result['success']) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Assignment Updated!')));
+                              _fetchData();
+                           } else {
+                              setModalState(() => isSubmitting = false);
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'])));
+                           }
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blueAccent,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: const Text('SAVE YARD', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                      child: isSubmitting 
+                       ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                       : const Text('SAVE ASSIGNMENT', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
-      ),
-    );
-  }
-
-  Widget _buildTextField(String label, String hint) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.subtitleColor)),
-        const SizedBox(height: 8),
-        TextField(
-          decoration: InputDecoration(
-            hintText: hint,
-            filled: true,
-            fillColor: AppTheme.backgroundColor,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDropdownField(String label, List<String> options) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.subtitleColor)),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: AppTheme.backgroundColor,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              isExpanded: true,
-              value: options.first,
-              items: options.map((String value) {
-                return DropdownMenuItem<String>(value: value, child: Text(value));
-              }).toList(),
-              onChanged: (_) {},
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _showLineForm() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Material(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        child: Container(
-          height: MediaQuery.of(context).size.height * 0.75,
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Add Line', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
-                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
-                ],
-              ),
-              const Divider(),
-              Expanded(
-                child: ListView(
-                  children: [
-                    const SizedBox(height: 16),
-                    _buildDropdownField('Select Yard', ['North Yard', 'South Yard']),
-                    const SizedBox(height: 16),
-                    _buildTextField('Line Name', 'e.g. Pit Line 5'),
-                    const SizedBox(height: 16),
-                    _buildDropdownField('Line Type', ['Pit Line', 'Stabling Line', 'Siding', 'Maintenance']),
-                    const SizedBox(height: 16),
-                    _buildDropdownField('Assign Dead-End Device (Optional)', ['None', 'DE-042', 'DE-019']),
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mock Line Created!')));
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueAccent,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: const Text('SAVE LINE', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showAssignForm(String lineName) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Material(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        child: Container(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Assign Device to $lineName', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
-                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
-                ],
-              ),
-              const Divider(),
-              const SizedBox(height: 16),
-              _buildDropdownField('Select Dead-End Device', ['None', 'DE-042', 'DE-019', 'DE-088']),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Assignment Updated!')));
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('SAVE ASSIGNMENT', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                ),
-              ),
-            ],
-          ),
-        ),
+          );
+        }
       ),
     );
   }

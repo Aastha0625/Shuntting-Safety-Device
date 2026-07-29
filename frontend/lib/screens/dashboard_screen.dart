@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_drawer.dart';
 import '../services/user_session.dart';
+import '../services/api_service.dart';
 import 'login_screen.dart';
 import 'device_inventory_screen.dart';
 import 'sessions_screen.dart';
@@ -9,8 +10,27 @@ import 'issue_return_screen.dart';
 import 'reports_screen.dart';
 import 'profile_screen.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  late Future<Map<String, dynamic>> _dashboardDataFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _dashboardDataFuture = ApiService.fetchDashboardSummary();
+  }
+
+  Future<void> _refreshData() async {
+    setState(() {
+      _dashboardDataFuture = ApiService.fetchDashboardSummary();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,36 +92,78 @@ class DashboardScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: _buildBodyForRole(context, session),
+      body: RefreshIndicator(
+        onRefresh: _refreshData,
+        child: FutureBuilder<Map<String, dynamic>>(
+          future: _dashboardDataFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (snapshot.hasError || !snapshot.hasData || snapshot.data!['success'] == false) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                    const SizedBox(height: 16),
+                    Text(
+                      snapshot.data?['message'] ?? 'Failed to load dashboard data',
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _refreshData,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            final data = snapshot.data!['data'];
+            return _buildBodyForRole(context, session, data);
+          },
+        ),
+      ),
     );
   }
 
-  Widget _buildBodyForRole(BuildContext context, UserSession session) {
+  Widget _buildBodyForRole(BuildContext context, UserSession session, Map<String, dynamic> data) {
     if (session.isSuperAdmin) {
-      return _buildSuperAdminBody(context);
+      return _buildSuperAdminBody(context, data);
     } else if (session.isYardAdmin) {
-      return _buildYardAdminBody(context, session);
+      return _buildYardAdminBody(context, session, data);
     } else {
-      return _buildViewerBody(context);
+      return _buildViewerBody(context, data);
     }
   }
 
   // ==========================================
   // SUPER ADMIN DASHBOARD
   // ==========================================
-  Widget _buildSuperAdminBody(BuildContext context) {
+  Widget _buildSuperAdminBody(BuildContext context, Map<String, dynamic> data) {
     return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSuperAdminBanner(),
-          _buildCriticalAlertsBanner(),
+          _buildCriticalAlertsBanner(data['criticalAlert']),
           const SizedBox(height: 24),
           _buildSectionTitle('LIVE ACTIVE SESSIONS', Icons.radar),
-          _buildLiveSessionsCarousel(context),
+          _buildLiveSessionsCarousel(context, data['liveSessions'] ?? []),
           const SizedBox(height: 16),
           _buildSectionTitle('GLOBAL YARD HEALTH SUMMARY', Icons.health_and_safety_outlined),
-          _buildHealthSummaryGrid(context: context, title1: 'Total Active\nDevices', title2: 'Devices\nOffline', title3: 'Total Sessions\nToday', title4: 'System\nStatus'),
+          _buildHealthSummaryGrid(
+            context: context, 
+            healthData: data['health'] ?? {},
+            title1: 'Total Active\nDevices', 
+            title2: 'Devices\nOffline', 
+            title3: 'Total Sessions\nToday', 
+            title4: 'System\nStatus'
+          ),
           const SizedBox(height: 32),
         ],
       ),
@@ -111,20 +173,28 @@ class DashboardScreen extends StatelessWidget {
   // ==========================================
   // YARD ADMIN DASHBOARD
   // ==========================================
-  Widget _buildYardAdminBody(BuildContext context, UserSession session) {
+  Widget _buildYardAdminBody(BuildContext context, UserSession session, Map<String, dynamic> data) {
     return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildYardAdminBanner(session),
           _buildYardAdminQuickActions(),
-          _buildCriticalAlertsBanner(), // Filtered implicitly by backend in future
+          _buildCriticalAlertsBanner(data['criticalAlert']),
           const SizedBox(height: 24),
           _buildSectionTitle('LIVE ACTIVE SESSIONS (MY YARDS)', Icons.radar),
-          _buildLiveSessionsCarousel(context),
+          _buildLiveSessionsCarousel(context, data['liveSessions'] ?? []),
           const SizedBox(height: 16),
           _buildSectionTitle('MY YARDS HEALTH SUMMARY', Icons.health_and_safety_outlined),
-          _buildHealthSummaryGrid(context: context, title1: 'Active Devices\n(My Yards)', title2: 'Devices Offline\n(My Yards)', title3: 'My Sessions\nToday', title4: 'My Yards\nStatus'),
+          _buildHealthSummaryGrid(
+            context: context, 
+            healthData: data['health'] ?? {},
+            title1: 'Active Devices\n(My Yards)', 
+            title2: 'Devices Offline\n(My Yards)', 
+            title3: 'My Sessions\nToday', 
+            title4: 'My Yards\nStatus'
+          ),
           const SizedBox(height: 32),
         ],
       ),
@@ -134,52 +204,37 @@ class DashboardScreen extends StatelessWidget {
   // ==========================================
   // VIEWER / CONTROL ROOM DASHBOARD
   // ==========================================
-  Widget _buildViewerBody(BuildContext context) {
+  Widget _buildViewerBody(BuildContext context, Map<String, dynamic> data) {
+    final liveSessions = (data['liveSessions'] as List<dynamic>?) ?? [];
+    
     return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildCriticalAlertsBanner(),
+          _buildCriticalAlertsBanner(data['criticalAlert']),
           const SizedBox(height: 16),
           _buildSectionTitle('LIVE OPERATIONS FEED', Icons.radar),
-          // Expanded vertical list instead of horizontal carousel
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Column(
-              children: [
-                _buildLiveGlowingCard(
-                  context: context,
-                  yard: 'North Yard',
-                  line: 'Line 4',
-                  ldDevice: 'LD-001',
-                  deDevice: 'DE-012',
-                  distance: '1.2m',
-                  isClosing: true,
-                  isExpanded: true,
-                ),
-                _buildLiveGlowingCard(
-                  context: context,
-                  yard: 'South Yard',
-                  line: 'Line 2',
-                  ldDevice: 'LD-014',
-                  deDevice: 'DE-008',
-                  distance: '24.5m',
-                  isClosing: false,
-                  isExpanded: true,
-                ),
-                _buildLiveGlowingCard(
-                  context: context,
-                  yard: 'North Yard',
-                  line: 'Line 1',
-                  ldDevice: 'LD-005',
-                  deDevice: 'DE-022',
-                  distance: '45.0m',
-                  isClosing: false,
-                  isExpanded: true,
-                ),
-              ],
+              children: liveSessions.map<Widget>((sessionData) => _buildLiveGlowingCard(
+                context: context,
+                yard: sessionData['yard'] ?? 'Unknown Yard',
+                line: sessionData['line'] ?? 'Unknown Line',
+                ldDevice: sessionData['ldDevice'] ?? 'LD-???',
+                deDevice: sessionData['deDevice'] ?? 'DE-???',
+                distance: sessionData['distance'] ?? '--m',
+                isClosing: sessionData['isClosing'] ?? false,
+                isExpanded: true,
+              )).toList(),
             ),
           ),
+          if (liveSessions.isEmpty)
+             const Padding(
+               padding: EdgeInsets.all(32.0),
+               child: Center(child: Text('No active sessions found.', style: TextStyle(color: Colors.white54))),
+             ),
           const SizedBox(height: 32),
         ],
       ),
@@ -341,7 +396,11 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCriticalAlertsBanner() {
+  Widget _buildCriticalAlertsBanner(dynamic alertData) {
+    if (alertData == null) {
+        return const SizedBox.shrink(); // Hide if no alerts
+    }
+
     return Builder(
       builder: (context) => Container(
         margin: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -374,9 +433,9 @@ class DashboardScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          '1 Critical Alert',
-                          style: TextStyle(
+                        Text(
+                          alertData['alert_type'] ?? 'CRITICAL ALERT',
+                          style: const TextStyle(
                             color: Colors.red,
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
@@ -384,7 +443,7 @@ class DashboardScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Device DE-042 missed heartbeat (30m+ offline)',
+                          alertData['message'] ?? 'Device offline',
                           style: TextStyle(
                             color: Colors.red.shade700,
                             fontSize: 12,
@@ -403,34 +462,29 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLiveSessionsCarousel(BuildContext context) {
+  Widget _buildLiveSessionsCarousel(BuildContext context, List<dynamic> liveSessions) {
+    if (liveSessions.isEmpty) {
+        return const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+            child: Text('No active sessions right now.', style: TextStyle(color: Colors.white54)),
+        );
+    }
+
     return SizedBox(
       height: 120,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        children: [
-          _buildLiveGlowingCard(
-            context: context,
-            yard: 'North Yard',
-            line: 'Line 4',
-            ldDevice: 'LD-001',
-            deDevice: 'DE-012',
-            distance: '1.2m',
-            isClosing: true,
-            isExpanded: false,
-          ),
-          _buildLiveGlowingCard(
-            context: context,
-            yard: 'South Yard',
-            line: 'Line 2',
-            ldDevice: 'LD-014',
-            deDevice: 'DE-008',
-            distance: '24.5m',
-            isClosing: false,
-            isExpanded: false,
-          ),
-        ],
+        children: liveSessions.map<Widget>((sessionData) => _buildLiveGlowingCard(
+          context: context,
+          yard: sessionData['yard'] ?? 'Unknown',
+          line: sessionData['line'] ?? 'Unknown',
+          ldDevice: sessionData['ldDevice'] ?? 'LD',
+          deDevice: sessionData['deDevice'] ?? 'DE',
+          distance: sessionData['distance'] ?? '--m',
+          isClosing: sessionData['isClosing'] ?? false,
+          isExpanded: false,
+        )).toList(),
       ),
     );
   }
@@ -568,6 +622,7 @@ class DashboardScreen extends StatelessWidget {
 
   Widget _buildHealthSummaryGrid({
     required BuildContext context,
+    required Map<String, dynamic> healthData,
     required String title1, 
     required String title2, 
     required String title3, 
@@ -586,7 +641,7 @@ class DashboardScreen extends StatelessWidget {
           _buildHealthCard(
             context: context, 
             title: title1, 
-            value: '42', 
+            value: healthData['activeDevices']?.toString() ?? '0', 
             icon: Icons.memory, 
             color: Colors.blue,
             onTap: () {
@@ -596,7 +651,7 @@ class DashboardScreen extends StatelessWidget {
           _buildHealthCard(
             context: context, 
             title: title2, 
-            value: '2', 
+            value: healthData['offlineDevices']?.toString() ?? '0', 
             icon: Icons.wifi_off, 
             color: Colors.red,
             onTap: () {
@@ -606,7 +661,7 @@ class DashboardScreen extends StatelessWidget {
           _buildHealthCard(
             context: context, 
             title: title3, 
-            value: '18', 
+            value: healthData['totalSessionsToday']?.toString() ?? '0', 
             icon: Icons.history, 
             color: Colors.purple,
             onTap: () {
@@ -616,7 +671,7 @@ class DashboardScreen extends StatelessWidget {
           _buildHealthCard(
             context: context, 
             title: title4, 
-            value: '98%', 
+            value: healthData['systemStatus']?.toString() ?? 'Unknown', 
             icon: Icons.check_circle_outline, 
             color: Colors.green,
             onTap: () {

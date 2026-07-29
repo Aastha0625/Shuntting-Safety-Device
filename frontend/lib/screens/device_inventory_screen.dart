@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_drawer.dart';
+import '../services/api_service.dart';
 
 class DeviceInventoryScreen extends StatefulWidget {
   const DeviceInventoryScreen({super.key});
@@ -11,55 +12,39 @@ class DeviceInventoryScreen extends StatefulWidget {
 
 class _DeviceInventoryScreenState extends State<DeviceInventoryScreen> {
   bool _isLoading = true;
-  List<Map<String, dynamic>> _allDevices = [];
+  List<dynamic> _allDevices = [];
   String _selectedTypeFilter = 'All Devices';
   final List<String> _typeFilters = ['All Devices', 'Loco Unit', 'Dead-End', 'Portable', 'Coupling'];
 
   @override
   void initState() {
     super.initState();
-    _fetchMockDevices();
+    _fetchDevices();
   }
 
-  Future<void> _fetchMockDevices() async {
+  Future<void> _fetchDevices() async {
     setState(() => _isLoading = true);
-    // Simulate network delay for API call
-    await Future.delayed(const Duration(milliseconds: 800));
     
-    _allDevices = [
-      {
-        'uuid': '8f3e2-1a4', 'code': 'DE-042', 'type': 'Dead-End', 'yard': 'North Yard',
-        'line': 'Line 4', 'serial': 'SN-998822', 'isOnline': false, 'simOperator': 'Airtel',
-        'simValid': '2027-01-15', 'status': 'Needs Repair', 'holder': 'N/A', 'lastHeartbeat': '30m ago'
-      },
-      {
-        'uuid': '1b4a9-8e2', 'code': 'LD-001', 'type': 'Loco Unit', 'yard': 'North Yard',
-        'line': 'N/A', 'serial': 'SN-554411', 'isOnline': true, 'simOperator': 'Jio',
-        'simValid': '2026-12-01', 'status': 'Active', 'holder': 'Loco Pilot Raj', 'lastHeartbeat': '2m ago'
-      },
-      {
-        'uuid': '7c2d1-9f5', 'code': 'PD-011', 'type': 'Portable', 'yard': 'South Yard',
-        'line': 'N/A', 'serial': 'SN-223344', 'isOnline': true, 'simOperator': 'Vodafone',
-        'simValid': '2026-10-20', 'status': 'Active', 'holder': 'Shunter Amit', 'lastHeartbeat': '1m ago'
-      },
-      {
-        'uuid': '2a9b3-4c6', 'code': 'DE-012', 'type': 'Dead-End', 'yard': 'South Yard',
-        'line': 'Line 2', 'serial': 'SN-112233', 'isOnline': true, 'simOperator': 'Airtel',
-        'simValid': '2027-03-10', 'status': 'Active', 'holder': 'N/A', 'lastHeartbeat': '12m ago'
-      },
-      {
-        'uuid': '9m4x2-1p9', 'code': 'LD-014', 'type': 'Loco Unit', 'yard': 'South Yard',
-        'line': 'N/A', 'serial': 'SN-887766', 'isOnline': true, 'simOperator': 'Jio',
-        'simValid': '2027-06-25', 'status': 'Active', 'holder': 'Loco Pilot Dev', 'lastHeartbeat': '5m ago'
-      },
-    ];
+    final result = await ApiService.fetchDevices();
     
-    if (mounted) setState(() => _isLoading = false);
+    if (mounted) {
+      if (result['success']) {
+        setState(() {
+          _allDevices = result['data'] ?? [];
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['message'] ?? 'Failed to load devices')),
+        );
+      }
+    }
   }
 
-  List<Map<String, dynamic>> get _filteredDevices {
+  List<dynamic> get _filteredDevices {
     if (_selectedTypeFilter == 'All Devices') return _allDevices;
-    return _allDevices.where((d) => d['type'] == _selectedTypeFilter).toList();
+    return _allDevices.where((d) => d['device_type'] == _selectedTypeFilter).toList();
   }
 
   @override
@@ -84,6 +69,12 @@ class _DeviceInventoryScreenState extends State<DeviceInventoryScreen> {
         ),
         elevation: 4,
         shadowColor: Colors.black.withValues(alpha: 0.5),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchDevices,
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -91,12 +82,15 @@ class _DeviceInventoryScreenState extends State<DeviceInventoryScreen> {
           Expanded(
             child: _isLoading 
               ? const Center(child: CircularProgressIndicator())
-              : _buildDeviceList(),
+              : RefreshIndicator(
+                  onRefresh: _fetchDevices,
+                  child: _buildDeviceList(),
+                ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showRegistrationForm,
+        onPressed: () => _showRegistrationForm(context),
         backgroundColor: Colors.blueAccent,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text('Add Device', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -139,17 +133,24 @@ class _DeviceInventoryScreenState extends State<DeviceInventoryScreen> {
   Widget _buildDeviceList() {
     final devices = _filteredDevices;
     if (devices.isEmpty) {
-      return const Center(
-        child: Text('No devices found.', style: TextStyle(color: AppTheme.subtitleColor)),
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          SizedBox(height: 100),
+          Center(
+            child: Text('No devices found.', style: TextStyle(color: AppTheme.subtitleColor)),
+          )
+        ],
       );
     }
     
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16.0),
       itemCount: devices.length,
       itemBuilder: (context, index) {
         final device = devices[index];
-        final isOnline = device['isOnline'] as bool;
+        final isOnline = device['network_status'] == 'Online';
         
         return Card(
           margin: const EdgeInsets.only(bottom: 16.0),
@@ -167,13 +168,13 @@ class _DeviceInventoryScreenState extends State<DeviceInventoryScreen> {
                     Row(
                       children: [
                         Icon(
-                          device['type'] == 'Dead-End' ? Icons.vertical_align_bottom : Icons.memory,
+                          device['device_type'] == 'Dead-End' ? Icons.vertical_align_bottom : Icons.memory,
                           color: AppTheme.primaryColor,
                           size: 24,
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          device['code'],
+                          device['device_code'] ?? 'Unknown',
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
                         ),
                       ],
@@ -207,17 +208,17 @@ class _DeviceInventoryScreenState extends State<DeviceInventoryScreen> {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Expanded(child: _buildInfoItem('Type', device['type'])),
-                    Expanded(child: _buildInfoItem('Yard', device['yard'])),
-                    Expanded(child: _buildInfoItem('Line', device['line'])),
+                    Expanded(child: _buildInfoItem('Type', device['device_type'] ?? 'N/A')),
+                    Expanded(child: _buildInfoItem('Battery', device['battery_level'] ?? '--')),
+                    Expanded(child: _buildInfoItem('Condition', device['condition_status'] ?? 'Unknown')),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Expanded(child: _buildInfoItem('SIM Valid', device['simValid'])),
-                    Expanded(child: _buildInfoItem('Holder', device['holder'])),
-                    Expanded(child: _buildInfoItem('Heartbeat', device['lastHeartbeat'])),
+                    Expanded(child: _buildInfoItem('SIM Status', device['sim_status'] ?? 'N/A')),
+                    Expanded(child: _buildInfoItem('Line ID', device['assigned_line_id'] != null ? 'Assigned' : 'Unassigned')),
+                    Expanded(child: _buildInfoItem('Heartbeat', device['last_heartbeat'] != null ? _formatDate(device['last_heartbeat']) : 'Never')),
                   ],
                 ),
               ],
@@ -226,6 +227,15 @@ class _DeviceInventoryScreenState extends State<DeviceInventoryScreen> {
         );
       },
     );
+  }
+
+  String _formatDate(String isoString) {
+    try {
+      final date = DateTime.parse(isoString).toLocal();
+      return "${date.day}/${date.month} ${date.hour}:${date.minute.toString().padLeft(2, '0')}";
+    } catch (e) {
+      return "Invalid date";
+    }
   }
 
   Widget _buildInfoItem(String label, String value) {
@@ -244,110 +254,128 @@ class _DeviceInventoryScreenState extends State<DeviceInventoryScreen> {
     );
   }
 
-  void _showRegistrationForm() {
+  void _showRegistrationForm(BuildContext parentContext) {
+    final codeController = TextEditingController();
+    String selectedType = 'Loco Unit';
+    bool isSubmitting = false;
+
     showModalBottomSheet(
-      context: context,
+      context: parentContext,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.85,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Register New Device', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
-              ],
-            ),
-            const Divider(),
-            const SizedBox(height: 16),
-            Expanded(
-              child: ListView(
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.75,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 24.0, right: 24.0, top: 24.0
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildTextField('Device Code', 'e.g. LD-045'),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Register New Device', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+                      IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+                    ],
+                  ),
+                  const Divider(),
                   const SizedBox(height: 16),
-                  _buildDropdownField('Device Type', ['Loco Unit', 'Dead-End', 'Portable', 'Coupling']),
-                  const SizedBox(height: 16),
-                  _buildTextField('Serial Number', 'Enter HW serial number'),
-                  const SizedBox(height: 16),
-                  _buildDropdownField('Yard', ['North Yard', 'South Yard', 'East Yard']),
-                  const SizedBox(height: 16),
-                  _buildTextField('SIM Operator', 'e.g. Airtel, Jio'),
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mock Device Registered successfully!')));
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: const Text('SAVE & REGISTER', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                  Expanded(
+                    child: ListView(
+                      children: [
+                        const Text('Device Code', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.subtitleColor)),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: codeController,
+                          decoration: InputDecoration(
+                            hintText: 'e.g. LD-045',
+                            filled: true,
+                            fillColor: AppTheme.backgroundColor,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        const Text('Device Type', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.subtitleColor)),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: AppTheme.backgroundColor,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              isExpanded: true,
+                              value: selectedType,
+                              items: ['Loco Unit', 'Dead-End', 'Portable', 'Coupling'].map((String value) {
+                                return DropdownMenuItem<String>(value: value, child: Text(value));
+                              }).toList(),
+                              onChanged: (val) {
+                                if (val != null) setModalState(() => selectedType = val);
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: isSubmitting 
+                              ? null 
+                              : () async {
+                                  if (codeController.text.trim().isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a device code')));
+                                    return;
+                                  }
+
+                                  setModalState(() => isSubmitting = true);
+                                  
+                                  final result = await ApiService.registerDevice(
+                                    deviceCode: codeController.text.trim(), 
+                                    deviceType: selectedType
+                                  );
+                                  
+                                  if (context.mounted) {
+                                    if (result['success']) {
+                                      Navigator.pop(context); // Close modal
+                                      ScaffoldMessenger.of(parentContext).showSnackBar(const SnackBar(content: Text('Device registered successfully!')));
+                                      _fetchDevices(); // Refresh list on parent
+                                    } else {
+                                      setModalState(() => isSubmitting = false);
+                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'] ?? 'Registration failed')));
+                                    }
+                                  }
+                                },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blueAccent,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: isSubmitting 
+                              ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                              : const Text('SAVE & REGISTER', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTextField(String label, String hint) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.subtitleColor)),
-        const SizedBox(height: 8),
-        TextField(
-          decoration: InputDecoration(
-            hintText: hint,
-            filled: true,
-            fillColor: AppTheme.backgroundColor,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDropdownField(String label, List<String> options) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.subtitleColor)),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: AppTheme.backgroundColor,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              isExpanded: true,
-              value: options.first,
-              items: options.map((String value) {
-                return DropdownMenuItem<String>(value: value, child: Text(value));
-              }).toList(),
-              onChanged: (_) {},
-            ),
-          ),
-        ),
-      ],
+            );
+          }
+        );
+      },
     );
   }
 }

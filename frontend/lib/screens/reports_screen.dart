@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_drawer.dart';
+import '../services/api_service.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -16,18 +17,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
   String _selectedReportType = 'Daily Shunting';
   bool _isLoading = false;
   bool _hasRunReport = false;
+  
+  List<dynamic> _results = [];
 
   final List<String> _timeTabs = ['Daily', 'Weekly', 'Monthly'];
   final List<String> _reportTypes = [
     'Daily Shunting',
-    'Employee Device Usage',
-    'Loco Device',
-    'Dead-End Device',
-    'Device Health',
-    'Device Failure',
     'Device Inventory',
-    'SIM & Maintenance',
-    'Coupling'
+    'Employee Device Usage',
+    'Device Health',
   ];
 
   @override
@@ -41,7 +39,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF1A2A42), Color(0xFF0F172A)], // Rich deep blue gradient
+              colors: [Color(0xFF1A2A42), Color(0xFF0F172A)], 
             ),
           ),
         ),
@@ -90,10 +88,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
     setState(() {
       _isLoading = true;
       _hasRunReport = false;
+      _results = [];
     });
 
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 1200));
+    if (_selectedReportType == 'Device Inventory' || _selectedReportType == 'Device Health') {
+       final res = await ApiService.fetchDevices();
+       if (res['success']) {
+          _results = res['data'];
+       }
+    } else {
+       final res = await ApiService.fetchSessions(status: 'history');
+       if (res['success']) {
+          _results = res['data'];
+       }
+       // Fetch live sessions as well
+       final resLive = await ApiService.fetchSessions(status: 'live');
+       if (resLive['success']) {
+          _results.addAll(resLive['data']);
+       }
+    }
 
     if (mounted) {
       setState(() {
@@ -195,7 +208,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
               }).toList(),
               onChanged: (newValue) {
                 if (newValue != null) {
-                  setState(() => _selectedReportType = newValue);
+                  setState(() {
+                     _selectedReportType = newValue;
+                     _hasRunReport = false;
+                  });
                 }
               },
             ),
@@ -206,29 +222,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   bool _showFilter(String filter) {
-    if (filter == 'Yard') return true; // Always visible
+    if (filter == 'Yard') return true; 
     
     switch (_selectedReportType) {
       case 'Daily Shunting':
-        return ['Device Code', 'Line', 'Employee', 'Session Status'].contains(filter);
-      case 'Employee Device Usage':
-        return ['Employee', 'Device Type', 'Device Code'].contains(filter);
-      case 'Loco Device':
-        return ['Device Code', 'Line', 'Employee', 'Session Status'].contains(filter);
-      case 'Dead-End Device':
-        return ['Line', 'Device Code', 'Device Health'].contains(filter);
-      case 'Device Health':
-        return ['Device Type', 'Device Code', 'Device Health'].contains(filter);
-      case 'Device Failure':
-        return ['Device Type', 'Device Code', 'Line'].contains(filter);
+        return ['Line', 'Employee'].contains(filter);
       case 'Device Inventory':
-        return ['Device Type', 'Device Code', 'Device Health', 'Maintenance Status'].contains(filter);
-      case 'SIM & Maintenance':
-        return ['Device Type', 'Device Code', 'SIM Status', 'Maintenance Status'].contains(filter);
-      case 'Coupling':
-        return ['Device Type', 'Device Code', 'Line', 'Session Status'].contains(filter);
+        return ['Device Type', 'Device Health'].contains(filter);
       default:
-        return true; 
+        return false; 
     }
   }
 
@@ -246,12 +248,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
       case 'Monthly':
         fromDate = now.subtract(const Duration(days: 30));
         break;
-      case 'Custom':
       default:
         fromDate = DateTime(2026, 7, 1);
     }
     
-    String format(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    String format(DateTime d) => "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
     return {
       'from': format(fromDate),
       'to': format(now),
@@ -263,13 +264,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
     
     if (_showFilter('Yard')) activeFilters.add(_buildFilterDropdown('Yard', 'All Yards'));
     if (_showFilter('Employee')) activeFilters.add(_buildFilterDropdown('Employee', 'Search...'));
-    if (_showFilter('Device Type')) activeFilters.add(_buildFilterDropdown('Device Type', 'Loco Unit'));
-    if (_showFilter('Device Code')) activeFilters.add(_buildFilterDropdown('Device Code', 'Select...'));
+    if (_showFilter('Device Type')) activeFilters.add(_buildFilterDropdown('Device Type', 'All Types'));
     if (_showFilter('Line')) activeFilters.add(_buildFilterDropdown('Line', 'All Lines'));
-    if (_showFilter('Session Status')) activeFilters.add(_buildFilterDropdown('Session Status', 'Completed'));
     if (_showFilter('Device Health')) activeFilters.add(_buildFilterDropdown('Device Health', 'Any Status'));
-    if (_showFilter('SIM Status')) activeFilters.add(_buildFilterDropdown('SIM Status', 'Active'));
-    if (_showFilter('Maintenance Status')) activeFilters.add(_buildFilterDropdown('Maintenance Status', 'All Statuses'));
 
     List<Widget> dynamicRows = [];
     for (int i = 0; i < activeFilters.length; i += 2) {
@@ -289,7 +286,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             children: [
               Expanded(child: activeFilters[i]),
               const SizedBox(width: 16),
-              const Expanded(child: SizedBox()), // Empty spacer for alignment
+              const Expanded(child: SizedBox()),
             ],
           ),
         );
@@ -396,8 +393,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Future<void> _downloadReport(String format) async {
     try {
       final dates = _getDateRange();
-      final filters = {
-        'Date Range': '${dates['from']} to ${dates['to']}',
+      final filters = <String, String>{
+        'Date Range': "${dates['from']} to ${dates['to']}",
         'Yard': 'All Yards'
       };
       
@@ -406,8 +403,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         'filters': jsonEncode(filters),
       };
       
-      // Use 10.0.2.2 for Android emulator, or localhost for Windows/Web
-      final uri = Uri.http('localhost:5000', '/api/reports/generate/$format', queryParams);
+      final uri = Uri.parse(ApiService.baseUrl.replaceAll('/api', '') + '/api/reports/generate/$format').replace(queryParameters: queryParams);
       
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -457,20 +453,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
           ),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          flex: 2,
-          child: OutlinedButton.icon(
-            onPressed: _hasRunReport ? () {} : null,
-            icon: Icon(Icons.print, color: _hasRunReport ? AppTheme.primaryColor : Colors.grey, size: 18),
-            label: Text('Print', style: TextStyle(color: _hasRunReport ? AppTheme.primaryColor : Colors.grey, fontWeight: FontWeight.bold)),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              side: const BorderSide(color: AppTheme.primaryColor),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -511,78 +493,82 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '3 RESULTS FOUND',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.subtitleColor, letterSpacing: 1.0),
+        Text(
+          '${_results.length} RESULTS FOUND',
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.subtitleColor, letterSpacing: 1.0),
         ),
         const SizedBox(height: 16),
-        _buildResultCard(
-          context: context,
-          date: 'Jul 28, 2026',
-          id: 'SH-10293',
-          status: 'Completed',
-          statusColor: Colors.green,
-          yard: 'North Yard / Line 4',
-          employee: 'EMP-2294 (John)',
-          devices: 'LD-001 / DE-012',
-          duration: '45m 12s',
-          minDist: '1.2m',
-          finalDist: '1.2m',
-          alerts: 0,
-          fails: 0,
-        ),
-        const SizedBox(height: 16),
-        _buildResultCard(
-          context: context,
-          date: 'Jul 28, 2026',
-          id: 'SH-10294',
-          status: 'Warning',
-          statusColor: Colors.orange,
-          yard: 'South Yard / Line 2',
-          employee: 'EMP-1102 (Sarah)',
-          devices: 'LD-014 / DE-008',
-          duration: '22m 05s',
-          minDist: '0.8m',
-          finalDist: '0.8m',
-          alerts: 2,
-          fails: 0,
-        ),
-        const SizedBox(height: 16),
-        _buildResultCard(
-          context: context,
-          date: 'Jul 28, 2026',
-          id: 'SH-10295',
-          status: 'Cancelled',
-          statusColor: Colors.red,
-          yard: 'North Yard / Line 1',
-          employee: 'EMP-1144 (Mike)',
-          devices: 'LD-005 / DE-022',
-          duration: '4m 30s',
-          minDist: '45.0m',
-          finalDist: '45.0m',
-          alerts: 0,
-          fails: 1,
-        ),
+        ..._results.map((item) {
+           if (_selectedReportType == 'Device Inventory' || _selectedReportType == 'Device Health') {
+              return _buildDeviceCard(item);
+           } else {
+              return _buildSessionCard(item);
+           }
+        }),
       ],
     );
   }
 
-  Widget _buildResultCard({
-    required BuildContext context,
-    required String date,
-    required String id,
-    required String status,
-    required Color statusColor,
-    required String yard,
-    required String employee,
-    required String devices,
-    required String duration,
-    required String minDist,
-    required String finalDist,
-    required int alerts,
-    required int fails,
-  }) {
+  Widget _buildDeviceCard(dynamic device) {
+     return Container(
+       margin: const EdgeInsets.only(bottom: 16.0),
+       decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.borderColor),
+       ),
+       child: Padding(
+         padding: const EdgeInsets.all(16.0),
+         child: Column(
+           children: [
+             Row(
+               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+               children: [
+                 Text(device['device_code'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.primaryColor)),
+                 Container(
+                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                   decoration: BoxDecoration(
+                     color: device['network_status'] == 'Online' ? Colors.green.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
+                     borderRadius: BorderRadius.circular(12),
+                   ),
+                   child: Text(
+                     (device['network_status'] ?? 'Unknown').toUpperCase(),
+                     style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: device['network_status'] == 'Online' ? Colors.green : Colors.orange),
+                   ),
+                 ),
+               ],
+             ),
+             const Divider(height: 24),
+             Row(
+               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+               children: [
+                 Column(
+                   crossAxisAlignment: CrossAxisAlignment.start,
+                   children: [
+                     const Text('Type', style: TextStyle(fontSize: 12, color: AppTheme.subtitleColor)),
+                     Text(device['device_type'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
+                   ],
+                 ),
+                 Column(
+                   crossAxisAlignment: CrossAxisAlignment.end,
+                   children: [
+                     const Text('Condition', style: TextStyle(fontSize: 12, color: AppTheme.subtitleColor)),
+                     Text(device['condition_status'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
+                   ],
+                 ),
+               ],
+             )
+           ],
+         ),
+       ),
+     );
+  }
+
+  Widget _buildSessionCard(dynamic session) {
+    Color statusColor = session['status'] == 'Warning' ? Colors.orange : (session['status'] == 'Completed' ? Colors.green : Colors.blueAccent);
+    
     return Container(
+      margin: const EdgeInsets.only(bottom: 16.0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
@@ -599,12 +585,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Opening detailed report for session $id...')));
-          },
+          onTap: () {},
           child: Column(
             children: [
-              // Header
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: const BoxDecoration(
@@ -616,7 +599,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '$date | $id',
+                  "${_formatDate(session['startTime'])} | SES-${session['id'].toString().length > 8 ? session['id'].toString().substring(0, 8) : session['id']}",
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
                 ),
                 Container(
@@ -626,20 +609,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    status.toUpperCase(),
+                    (session['status'] ?? 'UNKNOWN').toUpperCase(),
                     style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor),
                   ),
                 ),
               ],
             ),
           ),
-          // Body
           Container(
             padding: const EdgeInsets.all(16),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Accent Line
                 Container(
                   width: 4,
                   height: 100,
@@ -649,60 +630,28 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 Expanded(
                   child: Column(
                     children: [
-                      // Grid Info
                       Row(
                         children: [
-                          Expanded(child: _buildInfoItem('YARD / LINE', yard)),
-                          Expanded(child: _buildInfoItem('EMPLOYEE', employee)),
+                          Expanded(child: _buildInfoItem('YARD / LINE', "${session['yard']} / ${session['line']}")),
+                          Expanded(child: _buildInfoItem('EMPLOYEE', session['holder'] ?? 'Unknown')),
                         ],
                       ),
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          Expanded(child: _buildInfoItem('DEVICES', devices)),
-                          Expanded(child: _buildInfoItem('DURATION', duration)),
+                          Expanded(child: _buildInfoItem('DEVICES', "${session['ldDevice']} / ${session['deDevice']}")),
+                          Expanded(child: _buildInfoItem('START / END', "${_formatTime(session['startTime'])} - ${_formatTime(session['endTime'])}")),
                         ],
                       ),
                       const SizedBox(height: 16),
-                      // Distances
                       Container(
                         padding: const EdgeInsets.only(top: 16),
-                        decoration: const BoxDecoration(
-                          border: Border(top: BorderSide(color: AppTheme.borderColor, style: BorderStyle.none)), // Actually we'll use a Divider below
-                        ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            _buildDistanceItem('MIN DIST', minDist),
-                            Container(width: 1, height: 32, color: AppTheme.borderColor),
-                            _buildDistanceItem('FINAL DIST', finalDist),
+                            _buildDistanceItem('FINAL DIST', session['distance'] ?? 'N/A'),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Divider(color: AppTheme.borderColor),
-                      // Footer Stats
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.warning, size: 16, color: alerts > 0 ? Colors.red : AppTheme.subtitleColor),
-                              const SizedBox(width: 4),
-                              Text('$alerts Alerts', style: const TextStyle(fontSize: 12, color: AppTheme.subtitleColor)),
-                              const SizedBox(width: 16),
-                              Icon(Icons.signal_wifi_off, size: 16, color: fails > 0 ? Colors.red : AppTheme.subtitleColor),
-                              const SizedBox(width: 4),
-                              Text('$fails Fails', style: const TextStyle(fontSize: 12, color: AppTheme.subtitleColor)),
-                            ],
-                          ),
-                          Row(
-                            children: const [
-                              Text('Details', style: TextStyle(fontSize: 12, color: AppTheme.primaryColor, fontWeight: FontWeight.w600)),
-                              Icon(Icons.chevron_right, size: 16, color: AppTheme.primaryColor),
-                            ],
-                          ),
-                        ],
                       ),
                     ],
                   ),
@@ -713,6 +662,26 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ],
       ),
     )));
+  }
+
+  String _formatDate(String? isoString) {
+    if (isoString == null) return '--/--';
+    try {
+      final date = DateTime.parse(isoString!).toLocal();
+      return "${date.month}/${date.day}/${date.year}";
+    } catch (e) {
+      return "--/--";
+    }
+  }
+
+  String _formatTime(String? isoString) {
+    if (isoString == null) return '--:--';
+    try {
+      final date = DateTime.parse(isoString!).toLocal();
+      return "${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
+    } catch (e) {
+      return "--:--";
+    }
   }
 
   Widget _buildInfoItem(String label, String value) {

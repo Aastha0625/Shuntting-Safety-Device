@@ -1,66 +1,61 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_drawer.dart';
+import '../services/api_service.dart';
 
 class SessionsScreen extends StatefulWidget {
-  const SessionsScreen({Key? key}) : super(key: key);
+  const SessionsScreen({super.key});
 
   @override
   State<SessionsScreen> createState() => _SessionsScreenState();
 }
 
 class _SessionsScreenState extends State<SessionsScreen> {
-  // Mock Live Data
-  final List<Map<String, dynamic>> _liveSessions = [
-    {
-      'id': 'SES-8921',
-      'ld': 'LD-005',
-      'de': 'DE-042',
-      'yard': 'North Yard',
-      'line': 'Pit Line 1',
-      'distance': '45.2 m',
-      'startTime': '14:20',
-      'status': 'Active',
-      'alerts': 0,
-    },
-    {
-      'id': 'SES-8922',
-      'ld': 'LD-001',
-      'de': 'DE-019',
-      'yard': 'South Yard',
-      'line': 'Main Shunt Line',
-      'distance': '12.8 m',
-      'startTime': '14:45',
-      'status': 'Warning',
-      'alerts': 1,
-    }
-  ];
+  bool _isLoadingLive = true;
+  bool _isLoadingHistory = true;
+  List<dynamic> _liveSessions = [];
+  List<dynamic> _historySessions = [];
 
-  // Mock History Data
-  final List<Map<String, dynamic>> _historySessions = [
-    {
-      'id': 'SES-8910',
-      'ld': 'LD-005',
-      'de': 'DE-088',
-      'yard': 'North Yard',
-      'line': 'Stabling Line 2',
-      'finalDistance': '1.2 m',
-      'startTime': '09:15',
-      'endTime': '10:30',
-      'status': 'Completed',
-    },
-    {
-      'id': 'SES-8905',
-      'ld': 'LD-002',
-      'de': 'DE-042',
-      'yard': 'North Yard',
-      'line': 'Pit Line 1',
-      'finalDistance': '0.5 m',
-      'startTime': '08:00',
-      'endTime': '08:45',
-      'status': 'Completed',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    _fetchLiveSessions();
+    _fetchHistorySessions();
+  }
+
+  Future<void> _fetchLiveSessions() async {
+    setState(() => _isLoadingLive = true);
+    final result = await ApiService.fetchSessions(status: 'live');
+    if (mounted) {
+      if (result['success']) {
+        setState(() {
+          _liveSessions = result['data'];
+          _isLoadingLive = false;
+        });
+      } else {
+        setState(() => _isLoadingLive = false);
+      }
+    }
+  }
+
+  Future<void> _fetchHistorySessions() async {
+    setState(() => _isLoadingHistory = true);
+    final result = await ApiService.fetchSessions(status: 'history');
+    if (mounted) {
+      if (result['success']) {
+        setState(() {
+          _historySessions = result['data'];
+          _isLoadingHistory = false;
+        });
+      } else {
+        setState(() => _isLoadingHistory = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,8 +89,8 @@ class _SessionsScreenState extends State<SessionsScreen> {
         ),
         body: TabBarView(
           children: [
-            _buildLiveTab(),
-            _buildHistoryTab(),
+            _isLoadingLive ? const Center(child: CircularProgressIndicator()) : RefreshIndicator(onRefresh: _fetchLiveSessions, child: _buildLiveTab()),
+            _isLoadingHistory ? const Center(child: CircularProgressIndicator()) : RefreshIndicator(onRefresh: _fetchHistorySessions, child: _buildHistoryTab()),
           ],
         ),
       ),
@@ -104,10 +99,17 @@ class _SessionsScreenState extends State<SessionsScreen> {
 
   Widget _buildLiveTab() {
     if (_liveSessions.isEmpty) {
-      return const Center(child: Text('No active shunting sessions.', style: TextStyle(color: AppTheme.subtitleColor)));
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+           SizedBox(height: 100),
+           Center(child: Text('No active shunting sessions.', style: TextStyle(color: AppTheme.subtitleColor)))
+        ],
+      );
     }
 
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16.0),
       itemCount: _liveSessions.length,
       itemBuilder: (context, index) {
@@ -151,17 +153,24 @@ class _SessionsScreenState extends State<SessionsScreen> {
                         ],
                       ),
                     ),
-                    Text(session['id'], style: const TextStyle(color: AppTheme.subtitleColor, fontWeight: FontWeight.w600)),
+                    Flexible(
+                      child: Text(
+                        'SES-${session['id'].toString().length > 8 ? session['id'].toString().substring(0, 8) : session['id']}',
+                        style: const TextStyle(color: AppTheme.subtitleColor, fontWeight: FontWeight.w600),
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
-                      child: _buildMetricBlock('Distance', session['distance'], isWarning ? Colors.orange : AppTheme.primaryColor, 24),
+                      child: _buildMetricBlock('Distance', session['distance'] ?? 'N/A', isWarning ? Colors.orange : AppTheme.primaryColor, 24),
                     ),
                     Expanded(
-                      child: _buildMetricBlock('Start Time', session['startTime'], AppTheme.primaryColor, 18),
+                      child: _buildMetricBlock('Start Time', _formatTime(session['startTime']), AppTheme.primaryColor, 18),
                     ),
                   ],
                 ),
@@ -171,9 +180,9 @@ class _SessionsScreenState extends State<SessionsScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildDeviceLink(session['ld'], Icons.train),
+                    _buildDeviceLink(session['ldDevice'] ?? 'Unknown', Icons.train),
                     const Icon(Icons.sync_alt, color: AppTheme.subtitleColor),
-                    _buildDeviceLink(session['de'], Icons.stop_circle_outlined),
+                    _buildDeviceLink(session['deDevice'] ?? 'Unknown', Icons.stop_circle_outlined),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -181,7 +190,15 @@ class _SessionsScreenState extends State<SessionsScreen> {
                   children: [
                     const Icon(Icons.location_on_outlined, size: 16, color: AppTheme.subtitleColor),
                     const SizedBox(width: 4),
-                    Text('${session['yard']} • ${session['line']}', style: const TextStyle(fontSize: 12, color: AppTheme.subtitleColor)),
+                    Text("${session['yard']} • ${session['line']}", style: const TextStyle(fontSize: 12, color: AppTheme.subtitleColor)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.person, size: 16, color: AppTheme.subtitleColor),
+                    const SizedBox(width: 4),
+                    Text("Holder: ${session['holder']}", style: const TextStyle(fontSize: 12, color: AppTheme.subtitleColor)),
                   ],
                 ),
               ],
@@ -193,7 +210,18 @@ class _SessionsScreenState extends State<SessionsScreen> {
   }
 
   Widget _buildHistoryTab() {
+    if (_historySessions.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+           SizedBox(height: 100),
+           Center(child: Text('No past shunting sessions found.', style: TextStyle(color: AppTheme.subtitleColor)))
+        ],
+      );
+    }
+
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16.0),
       itemCount: _historySessions.length,
       itemBuilder: (context, index) {
@@ -210,37 +238,72 @@ class _SessionsScreenState extends State<SessionsScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(session['id'], style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
-                    Text('${session['startTime']} - ${session['endTime']}', style: const TextStyle(color: AppTheme.subtitleColor, fontSize: 12)),
+                    Flexible(
+                      child: Text(
+                        'SES-${session['id'].toString().length > 8 ? session['id'].toString().substring(0, 8) : session['id']}', 
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text('${_formatDate(session['startTime'])}', style: const TextStyle(color: AppTheme.subtitleColor, fontSize: 12)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text('${_formatTime(session['startTime'])} - ${_formatTime(session['endTime'])}', style: const TextStyle(color: AppTheme.subtitleColor, fontSize: 12)),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    _buildDeviceBadge(session['ld']),
+                    _buildDeviceBadge(session['ldDevice'] ?? 'Unknown'),
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 8.0),
                       child: Icon(Icons.arrow_forward_ios, size: 12, color: AppTheme.borderColor),
                     ),
-                    _buildDeviceBadge(session['de']),
+                    _buildDeviceBadge(session['deDevice'] ?? 'Unknown'),
                     const Spacer(),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         const Text('Final Placement', style: TextStyle(fontSize: 10, color: AppTheme.subtitleColor)),
-                        Text(session['finalDistance'], style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                        Text(session['distance'] ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
                       ],
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text('${session['yard']} • ${session['line']}', style: const TextStyle(fontSize: 12, color: AppTheme.subtitleColor)),
+                Text("${session['yard']} • ${session['line']}", style: const TextStyle(fontSize: 12, color: AppTheme.subtitleColor)),
+                const SizedBox(height: 4),
+                Text("Holder: ${session['holder']}", style: const TextStyle(fontSize: 12, color: AppTheme.subtitleColor)),
               ],
             ),
           ),
         );
       },
     );
+  }
+
+  String _formatTime(String? isoString) {
+    if (isoString == null) return '--:--';
+    try {
+      final date = DateTime.parse(isoString!).toLocal();
+      return "${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
+    } catch (e) {
+      return "--:--";
+    }
+  }
+
+  String _formatDate(String? isoString) {
+    if (isoString == null) return '--/--';
+    try {
+      final date = DateTime.parse(isoString!).toLocal();
+      return "${date.day}/${date.month}/${date.year}";
+    } catch (e) {
+      return "--/--";
+    }
   }
 
   Widget _buildMetricBlock(String label, String value, Color color, double valueSize) {
@@ -276,7 +339,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.1),
+        color: Colors.blue.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(deviceId, style: const TextStyle(fontSize: 12, color: Colors.blueAccent, fontWeight: FontWeight.w600)),

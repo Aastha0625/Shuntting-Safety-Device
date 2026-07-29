@@ -5,6 +5,10 @@ require('dotenv').config();
 const authRoutes = require('./routes/authRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const yardRoutes = require('./routes/yardRoutes');
+const deviceRoutes = require('./routes/deviceRoutes');
+const iotRoutes = require('./routes/iotRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
+const sessionRoutes = require('./routes/sessionRoutes');
 
 const app = express();
 
@@ -17,6 +21,10 @@ app.use('/uploads', express.static('uploads')); // Serve uploaded files
 app.use('/api/auth', authRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/yards', yardRoutes);
+app.use('/api/devices', deviceRoutes);
+app.use('/api/iot', iotRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/sessions', sessionRoutes);
 
 // Base route for testing
 app.get('/', (req, res) => {

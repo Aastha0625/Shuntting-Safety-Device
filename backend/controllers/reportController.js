@@ -1,5 +1,6 @@
 const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit-table');
+const db = require('../config/db');
 
 exports.generatePDF = async (req, res) => {
   try {
@@ -32,28 +33,36 @@ exports.generatePDF = async (req, res) => {
     }
     doc.moveDown(2);
 
-    // Generate Mock Data Table based on report type
-    // We'll keep it simple: Date, ID, Status, and some dynamic columns
-    const tableData = {
+    let tableData = {
       title: `${reportType || 'Data'} Results`,
-      headers: ['Date', 'ID', 'Yard', 'Line', 'Status'],
-      rows: [
-        ['2026-07-25', '#S-1042', 'North Yard', 'Line 4', 'Completed'],
-        ['2026-07-25', '#S-1039', 'South Yard', 'Line 2', 'Comm Loss'],
-        ['2026-07-24', '#S-1021', 'East Yard', 'Line 1', 'Completed'],
-        ['2026-07-23', '#S-0994', 'North Yard', 'Line 4', 'Completed'],
-        ['2026-07-22', '#S-0988', 'West Yard', 'Line 1', 'Ongoing'],
-      ],
+      headers: [],
+      rows: []
     };
 
     if (reportType === 'Device Inventory') {
-      tableData.headers = ['UUID', 'Device Type', 'Health', 'Maintenance Status'];
-      tableData.rows = [
-        ['LD-001', 'Loco Unit', 'Online', 'Good'],
-        ['DE-042', 'Dead-End', 'Offline', 'Needs Repair'],
-        ['PD-011', 'Portable', 'Online', 'Good'],
-        ['CD-105', 'Coupling', 'Online', 'Good'],
-      ];
+      tableData.headers = ['UUID', 'Type', 'Battery', 'Condition', 'Status'];
+      const devices = await db.query('SELECT device_code, device_type, battery_level, condition_status, network_status FROM devices ORDER BY created_at DESC');
+      tableData.rows = devices.rows.map(d => [d.device_code, d.device_type, d.battery_level || '--', d.condition_status, d.network_status]);
+    } else {
+      // Default to sessions
+      tableData.headers = ['Date', 'Device', 'Employee', 'Status'];
+      const sessions = await db.query(`
+        SELECT da.issued_at, d.device_code, u.full_name, da.returned_at
+        FROM device_assignments da
+        JOIN devices d ON da.device_id = d.id
+        JOIN users u ON da.employee_id = u.id
+        ORDER BY da.issued_at DESC LIMIT 50
+      `);
+      tableData.rows = sessions.rows.map(s => [
+        new Date(s.issued_at).toLocaleDateString(), 
+        s.device_code, 
+        s.full_name, 
+        s.returned_at ? 'Finished' : 'Active'
+      ]);
+    }
+
+    if (tableData.rows.length === 0) {
+        tableData.rows = [['No data found', '', '', '', '']];
     }
     
     await doc.table(tableData, { 
@@ -96,24 +105,34 @@ exports.generateExcel = async (req, res) => {
     }
     sheet.addRow([]);
 
-    // Mock Data Headers
-    let headers = ['Date', 'ID', 'Yard', 'Line', 'Status'];
-    let rows = [
-      ['2026-07-25', '#S-1042', 'North Yard', 'Line 4', 'Completed'],
-      ['2026-07-25', '#S-1039', 'South Yard', 'Line 2', 'Comm Loss'],
-      ['2026-07-24', '#S-1021', 'East Yard', 'Line 1', 'Completed'],
-      ['2026-07-23', '#S-0994', 'North Yard', 'Line 4', 'Completed'],
-      ['2026-07-22', '#S-0988', 'West Yard', 'Line 1', 'Ongoing'],
-    ];
+    // Data from DB
+    let headers = [];
+    let rows = [];
 
     if (reportType === 'Device Inventory') {
-      headers = ['UUID', 'Device Type', 'Health', 'Maintenance Status'];
-      rows = [
-        ['LD-001', 'Loco Unit', 'Online', 'Good'],
-        ['DE-042', 'Dead-End', 'Offline', 'Needs Repair'],
-        ['PD-011', 'Portable', 'Online', 'Good'],
-        ['CD-105', 'Coupling', 'Online', 'Good'],
-      ];
+      headers = ['UUID', 'Type', 'Battery', 'Condition', 'Status'];
+      const devices = await db.query('SELECT device_code, device_type, battery_level, condition_status, network_status FROM devices ORDER BY created_at DESC');
+      rows = devices.rows.map(d => [d.device_code, d.device_type, d.battery_level || '--', d.condition_status, d.network_status]);
+    } else {
+      // Default to sessions
+      headers = ['Date', 'Device', 'Employee', 'Status'];
+      const sessions = await db.query(`
+        SELECT da.issued_at, d.device_code, u.full_name, da.returned_at
+        FROM device_assignments da
+        JOIN devices d ON da.device_id = d.id
+        JOIN users u ON da.employee_id = u.id
+        ORDER BY da.issued_at DESC LIMIT 50
+      `);
+      rows = sessions.rows.map(s => [
+        new Date(s.issued_at).toLocaleDateString(), 
+        s.device_code, 
+        s.full_name, 
+        s.returned_at ? 'Finished' : 'Active'
+      ]);
+    }
+
+    if (rows.length === 0) {
+        rows = [['No data found', '', '', '']];
     }
 
     // Add Header Row
