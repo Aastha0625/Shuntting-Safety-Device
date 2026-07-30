@@ -88,9 +88,51 @@ const getYardLines = async (req, res) => {
   }
 };
 
+// @desc    Assign a yard to a user
+// @route   POST /api/yards/assign
+// @access  Super Admin
+const assignYardToUser = async (req, res) => {
+  try {
+    const { userId, yardId } = req.body;
+    if (!userId || !yardId) {
+      return res.status(400).json({ message: 'User ID and Yard ID are required' });
+    }
+    await db.query(
+      'INSERT INTO user_yard_assignments (user_id, yard_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [userId, yardId]
+    );
+    res.status(201).json({ message: 'Yard assigned successfully' });
+  } catch (error) {
+    console.error('Error assigning yard:', error);
+    res.status(500).json({ message: 'Server error assigning yard' });
+  }
+};
+
+// @desc    Remove yard assignment from a user
+// @route   DELETE /api/yards/assign
+// @access  Super Admin
+const removeYardAssignment = async (req, res) => {
+  try {
+    const { userId, yardId } = req.body;
+    if (!userId || !yardId) {
+      return res.status(400).json({ message: 'User ID and Yard ID are required' });
+    }
+    await db.query(
+      'DELETE FROM user_yard_assignments WHERE user_id = $1 AND yard_id = $2',
+      [userId, yardId]
+    );
+    res.status(200).json({ message: 'Yard assignment removed successfully' });
+  } catch (error) {
+    console.error('Error removing yard assignment:', error);
+    res.status(500).json({ message: 'Server error removing assignment' });
+  }
+};
+
 module.exports = {
   createYard,
   getYards,
   addYardLine,
-  getYardLines
+  getYardLines,
+  assignYardToUser,
+  removeYardAssignment
 };

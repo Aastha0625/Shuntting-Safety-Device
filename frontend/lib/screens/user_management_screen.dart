@@ -7,7 +7,7 @@ class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
 
   @override
-  _UserManagementScreenState createState() => _UserManagementScreenState();
+  State<UserManagementScreen> createState() => _UserManagementScreenState();
 }
 
 class _UserManagementScreenState extends State<UserManagementScreen> {
@@ -39,7 +39,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         _errorMessage = usersResult['message'];
       }
       if (yardsResult['success']) {
-        _yards = List<Map<String, dynamic>>.from(yardsResult['data']['yards'] ?? []);
+        _yards = List<Map<String, dynamic>>.from(yardsResult['data'] ?? []);
       }
     });
   }
@@ -75,7 +75,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   Future<void> _toggleUserActive(Map<String, dynamic> user) async {
-    final result = await ApiService.toggleUserActive(user['id']);
+    final result = await ApiService.toggleUserActive(user['id'].toString());
+    if (!mounted) return;
 
     if (result['success']) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -107,9 +108,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
     await showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogCtx) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
+          builder: (stateCtx, setDialogState) {
             return AlertDialog(
               title: Text('Assign Yard to ${user['fullName']}'),
               content: Column(
@@ -148,9 +149,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       : () async {
                           Navigator.pop(context);
                           final result = await ApiService.assignYardToUser(
-                            userId: user['id'],
+                            userId: user['id'].toString(),
                             yardId: selectedYardId!,
                           );
+                          if (!mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(result['message'] ?? 'Done'),
@@ -188,9 +190,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
     if (confirm == true) {
       final result = await ApiService.removeYardAssignment(
-        userId: user['id'],
+        userId: user['id'].toString(),
         yardId: yard['id'].toString(),
       );
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result['message'] ?? 'Done'),

@@ -214,6 +214,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           _buildCriticalAlertsBanner(data['criticalAlert']),
           const SizedBox(height: 16),
+          _buildSectionTitle('HEALTH SUMMARY', Icons.health_and_safety_outlined),
+          _buildHealthSummaryGrid(
+            context: context, 
+            healthData: data['health'] ?? {},
+            title1: 'Total Active\nDevices', 
+            title2: 'Devices\nOffline', 
+            title3: 'Total Sessions\nToday', 
+            title4: 'System\nStatus'
+          ),
+          const SizedBox(height: 24),
           _buildSectionTitle('LIVE OPERATIONS FEED', Icons.radar),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -575,17 +585,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Pairing', style: TextStyle(color: Colors.white54, fontSize: 10)),
-                            const SizedBox(height: 2),
-                            Text(
-                              '$ldDevice ↔ $deDevice',
-                              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                            ),
-                          ],
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Pairing', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                              const SizedBox(height: 2),
+                              Text(
+                                '$ldDevice ↔ $deDevice',
+                                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 4),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [

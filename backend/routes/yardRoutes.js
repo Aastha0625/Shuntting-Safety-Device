@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createYard, getYards, addYardLine, getYardLines } = require('../controllers/yardController');
+const { createYard, getYards, addYardLine, getYardLines, assignYardToUser, removeYardAssignment } = require('../controllers/yardController');
 const { verifyToken: protect } = require('../middleware/authMiddleware');
 
 router.route('/')
@@ -10,5 +10,9 @@ router.route('/')
 router.route('/:yardId/lines')
   .get(protect, getYardLines)
   .post(protect, addYardLine);
+
+router.route('/assign')
+  .post(protect, assignYardToUser)
+  .delete(protect, removeYardAssignment);
 
 module.exports = router;

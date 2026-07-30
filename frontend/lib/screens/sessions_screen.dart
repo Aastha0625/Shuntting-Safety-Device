@@ -134,7 +134,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: isWarning ? Colors.orange.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+                        color: isWarning ? Colors.orange.withValues(alpha: 0.1) : Colors.green.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -245,7 +245,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    Text('${_formatDate(session['startTime'])}', style: const TextStyle(color: AppTheme.subtitleColor, fontSize: 12)),
+                    Text(_formatDate(session['startTime']), style: const TextStyle(color: AppTheme.subtitleColor, fontSize: 12)),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -289,7 +289,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
   String _formatTime(String? isoString) {
     if (isoString == null) return '--:--';
     try {
-      final date = DateTime.parse(isoString!).toLocal();
+      final date = DateTime.parse(isoString).toLocal();
       return "${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
     } catch (e) {
       return "--:--";
@@ -299,7 +299,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
   String _formatDate(String? isoString) {
     if (isoString == null) return '--/--';
     try {
-      final date = DateTime.parse(isoString!).toLocal();
+      final date = DateTime.parse(isoString).toLocal();
       return "${date.day}/${date.month}/${date.year}";
     } catch (e) {
       return "--/--";

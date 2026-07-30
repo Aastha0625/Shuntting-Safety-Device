@@ -107,7 +107,7 @@ class _IssueReturnScreenState extends State<IssueReturnScreen> {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
       child: StatefulBuilder(
-        builder: (context, setTabState) {
+        builder: (tabCtx, setTabState) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -301,7 +301,7 @@ class _IssueReturnScreenState extends State<IssueReturnScreen> {
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) {
+        builder: (dialogCtx, setDialogState) {
           return AlertDialog(
             title: Text("Return ${session['ldDevice']}?"),
             content: Column(
@@ -330,7 +330,7 @@ class _IssueReturnScreenState extends State<IssueReturnScreen> {
                   final result = await ApiService.returnDevice(session['id'].toString(), remarksController.text);
                   if (mounted) {
                      if (result['success']) {
-                        Navigator.pop(ctx);
+                        Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Device Returned Successfully!')));
                         _fetchData();
                      } else {

@@ -174,17 +174,6 @@ class AppDrawer extends StatelessWidget {
             ),
           ],
 
-          const Divider(color: AppTheme.borderColor),
-          ListTile(
-            leading: const Icon(Icons.settings_outlined, color: AppTheme.subtitleColor),
-            title: const Text('Settings', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.w600)),
-            onTap: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Settings (Coming Soon)')),
-              );
-            },
-          ),
         ],
       ),
     );

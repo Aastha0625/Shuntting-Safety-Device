@@ -267,8 +267,8 @@ class _DEAssignmentScreenState extends State<DEAssignmentScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) {
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (modalCtx, setModalState) {
           return Material(
             color: Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),

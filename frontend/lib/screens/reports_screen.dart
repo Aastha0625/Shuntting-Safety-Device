@@ -9,7 +9,7 @@ class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
 
   @override
-  _ReportsScreenState createState() => _ReportsScreenState();
+  State<ReportsScreen> createState() => _ReportsScreenState();
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
@@ -403,7 +403,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         'filters': jsonEncode(filters),
       };
       
-      final uri = Uri.parse(ApiService.baseUrl.replaceAll('/api', '') + '/api/reports/generate/$format').replace(queryParameters: queryParams);
+      final uri = Uri.parse('${ApiService.baseUrl.replaceAll('/api', '')}/api/reports/generate/$format').replace(queryParameters: queryParams);
       
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -667,7 +667,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   String _formatDate(String? isoString) {
     if (isoString == null) return '--/--';
     try {
-      final date = DateTime.parse(isoString!).toLocal();
+      final date = DateTime.parse(isoString).toLocal();
       return "${date.month}/${date.day}/${date.year}";
     } catch (e) {
       return "--/--";
@@ -677,7 +677,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   String _formatTime(String? isoString) {
     if (isoString == null) return '--:--';
     try {
-      final date = DateTime.parse(isoString!).toLocal();
+      final date = DateTime.parse(isoString).toLocal();
       return "${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
     } catch (e) {
       return "--:--";

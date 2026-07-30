@@ -299,8 +299,8 @@ class _YardSetupScreenState extends State<YardSetupScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) {
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (modalCtx, setModalState) {
           return Material(
             color: Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -387,8 +387,8 @@ class _YardSetupScreenState extends State<YardSetupScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) {
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (modalCtx, setModalState) {
           return Material(
             color: Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -484,8 +484,8 @@ class _YardSetupScreenState extends State<YardSetupScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) {
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (modalCtx, setModalState) {
           return Material(
             color: Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),

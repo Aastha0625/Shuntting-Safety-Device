@@ -14,6 +14,12 @@ const verifyToken = async (req, res, next) => {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, JWT_SECRET);
 
+    // Validate that decoded.id is a valid UUID before querying DB
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(decoded.id)) {
+      return res.status(401).json({ message: 'Invalid or legacy token. Please login again.' });
+    }
+
     // Fetch user from DB to ensure they still exist and are active
     const userResult = await db.query(
       'SELECT id, full_name, employee_id, email, designation, role, is_active FROM users WHERE id = $1',
