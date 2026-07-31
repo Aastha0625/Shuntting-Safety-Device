@@ -15,6 +15,13 @@ class MyApp extends StatelessWidget {
       title: 'Shunting Safety Device',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
+      builder: (context, child) {
+        return SafeArea(
+          top: false,
+          bottom: true,
+          child: child!,
+        );
+      },
       home: const LoginScreen(),
     );
   }

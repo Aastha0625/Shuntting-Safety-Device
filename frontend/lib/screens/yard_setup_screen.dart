@@ -129,7 +129,7 @@ class _YardSetupScreenState extends State<YardSetupScreen> {
                       children: [
                         const Text('CONFIGURED LINES', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.subtitleColor, letterSpacing: 1.0)),
                         TextButton.icon(
-                          onPressed: () => _showLineForm(yard['id']),
+                          onPressed: () => _showLineForm(yard['id'].toString()),
                           icon: const Icon(Icons.add, size: 16),
                           label: const Text('Add Line'),
                           style: TextButton.styleFrom(foregroundColor: Colors.blueAccent),
@@ -377,7 +377,7 @@ class _YardSetupScreenState extends State<YardSetupScreen> {
     );
   }
 
-  void _showLineForm(int yardId) {
+  void _showLineForm(String yardId) {
     final nameController = TextEditingController();
     final codeController = TextEditingController();
 

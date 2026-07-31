@@ -305,12 +305,12 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> addYardLine(int yardId, String lineName, String geoCoords) async {
+  static Future<Map<String, dynamic>> addYardLine(String yardId, String lineName, String lineCode) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/yards/$yardId/lines'),
         headers: _authHeaders(),
-        body: jsonEncode({'line_name': lineName, 'geo_coordinates': geoCoords})
+        body: jsonEncode({'line_name': lineName, 'line_code': lineCode, 'line_type': 'Standard'})
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 201) return {'success': true, 'data': data};
