@@ -77,7 +77,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
     if (result['success']) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registration Successful! Please login.'), backgroundColor: Colors.green),
+        SnackBar(content: Text(result['data']['message'] ?? 'Registration Successful!'), backgroundColor: Colors.green),
       );
       Navigator.pop(context); // Go back to login screen
     } else {

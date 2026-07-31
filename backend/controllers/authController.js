@@ -45,6 +45,11 @@ exports.register = async (req, res) => {
     // 2. Derive role from designation
     const role = designationToRole[designation] || 'viewer';
 
+    // Check if this is the first user in the system
+    const userCountResult = await db.query('SELECT COUNT(*) FROM users');
+    const isFirstUser = parseInt(userCountResult.rows[0].count) === 0;
+    const isActive = isFirstUser; // Only the first user is active automatically
+
     // 3. Hash password
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
@@ -52,14 +57,14 @@ exports.register = async (req, res) => {
     // 4. Insert user into DB (now with role)
     const newUser = await db.query(
       'INSERT INTO users (full_name, employee_id, email, designation, password_hash, role, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, full_name, employee_id, email, designation, role',
-      [fullName, employeeId, email, designation, passwordHash, role, true]
+      [fullName, employeeId, email, designation, passwordHash, role, isActive]
     );
 
     const user = newUser.rows[0];
 
-    // 5. Return success and token
+    // 5. Return success and token (if active)
     res.status(201).json({
-      message: 'User registered successfully',
+      message: isActive ? 'User registered successfully' : 'Registration successful! Please wait for admin approval.',
       user: {
         id: user.id,
         fullName: user.full_name,
@@ -69,7 +74,7 @@ exports.register = async (req, res) => {
         role: user.role,
         assignedYards: [], // New user has no yards assigned yet
       },
-      token: generateToken(user.id, user.employee_id, user.role)
+      token: isActive ? generateToken(user.id, user.employee_id, user.role) : null
     });
 
   } catch (error) {
@@ -93,7 +98,7 @@ exports.login = async (req, res) => {
 
     // 2. Check if user is active
     if (user.is_active === false) {
-      return res.status(403).json({ message: 'Account is deactivated. Contact administrator.' });
+      return res.status(403).json({ message: 'Account is pending approval or deactivated. Contact administrator.' });
     }
 
     // 3. Verify password
