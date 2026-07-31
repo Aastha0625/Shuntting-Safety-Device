@@ -41,18 +41,41 @@ exports.generatePDF = async (req, res) => {
 
     if (reportType === 'Device Inventory') {
       tableData.headers = ['UUID', 'Type', 'Battery', 'Condition', 'Status'];
-      const devices = await db.query('SELECT device_code, device_type, battery_level, condition_status, network_status FROM devices ORDER BY created_at DESC');
+      let deviceQuery = 'SELECT device_code, device_type, battery_level, condition_status, network_status FROM devices ORDER BY created_at DESC';
+      let deviceParams = [];
+      if (req.user.role === 'yard_admin') {
+         deviceQuery = `
+            SELECT d.device_code, d.device_type, d.battery_level, d.condition_status, d.network_status 
+            FROM devices d
+            LEFT JOIN yard_lines yl ON d.assigned_line_id = yl.id
+            LEFT JOIN user_yard_assignments uya ON yl.yard_id = uya.yard_id AND uya.user_id = $1
+            WHERE d.assigned_line_id IS NULL OR uya.yard_id IS NOT NULL
+            ORDER BY d.created_at DESC
+         `;
+         deviceParams = [req.user.id];
+      }
+      const devices = await db.query(deviceQuery, deviceParams);
       tableData.rows = devices.rows.map(d => [d.device_code, d.device_type, d.battery_level || '--', d.condition_status, d.network_status]);
     } else {
       // Default to sessions
       tableData.headers = ['Date', 'Device', 'Employee', 'Status'];
-      const sessions = await db.query(`
+      let sessionQuery = `
         SELECT da.issued_at, d.device_code, u.full_name, da.returned_at
         FROM device_assignments da
         JOIN devices d ON da.device_id = d.id
         JOIN users u ON da.employee_id = u.id
-        ORDER BY da.issued_at DESC LIMIT 50
-      `);
+      `;
+      let sessionParams = [];
+      if (req.user.role === 'yard_admin') {
+         sessionQuery += `
+            LEFT JOIN yard_lines yl ON d.assigned_line_id = yl.id
+            JOIN user_yard_assignments uya ON yl.yard_id = uya.yard_id
+            WHERE uya.user_id = $1
+         `;
+         sessionParams = [req.user.id];
+      }
+      sessionQuery += ' ORDER BY da.issued_at DESC LIMIT 50';
+      const sessions = await db.query(sessionQuery, sessionParams);
       tableData.rows = sessions.rows.map(s => [
         new Date(s.issued_at).toLocaleDateString(), 
         s.device_code, 
@@ -111,18 +134,41 @@ exports.generateExcel = async (req, res) => {
 
     if (reportType === 'Device Inventory') {
       headers = ['UUID', 'Type', 'Battery', 'Condition', 'Status'];
-      const devices = await db.query('SELECT device_code, device_type, battery_level, condition_status, network_status FROM devices ORDER BY created_at DESC');
+      let deviceQuery = 'SELECT device_code, device_type, battery_level, condition_status, network_status FROM devices ORDER BY created_at DESC';
+      let deviceParams = [];
+      if (req.user.role === 'yard_admin') {
+         deviceQuery = `
+            SELECT d.device_code, d.device_type, d.battery_level, d.condition_status, d.network_status 
+            FROM devices d
+            LEFT JOIN yard_lines yl ON d.assigned_line_id = yl.id
+            LEFT JOIN user_yard_assignments uya ON yl.yard_id = uya.yard_id AND uya.user_id = $1
+            WHERE d.assigned_line_id IS NULL OR uya.yard_id IS NOT NULL
+            ORDER BY d.created_at DESC
+         `;
+         deviceParams = [req.user.id];
+      }
+      const devices = await db.query(deviceQuery, deviceParams);
       rows = devices.rows.map(d => [d.device_code, d.device_type, d.battery_level || '--', d.condition_status, d.network_status]);
     } else {
       // Default to sessions
       headers = ['Date', 'Device', 'Employee', 'Status'];
-      const sessions = await db.query(`
+      let sessionQuery = `
         SELECT da.issued_at, d.device_code, u.full_name, da.returned_at
         FROM device_assignments da
         JOIN devices d ON da.device_id = d.id
         JOIN users u ON da.employee_id = u.id
-        ORDER BY da.issued_at DESC LIMIT 50
-      `);
+      `;
+      let sessionParams = [];
+      if (req.user.role === 'yard_admin') {
+         sessionQuery += `
+            LEFT JOIN yard_lines yl ON d.assigned_line_id = yl.id
+            JOIN user_yard_assignments uya ON yl.yard_id = uya.yard_id
+            WHERE uya.user_id = $1
+         `;
+         sessionParams = [req.user.id];
+      }
+      sessionQuery += ' ORDER BY da.issued_at DESC LIMIT 50';
+      const sessions = await db.query(sessionQuery, sessionParams);
       rows = sessions.rows.map(s => [
         new Date(s.issued_at).toLocaleDateString(), 
         s.device_code, 

@@ -24,15 +24,27 @@ const getSessions = async (req, res) => {
         LEFT JOIN yards y ON yl.yard_id = y.id
     `;
 
+    let queryParams = [];
+    let whereClauses = [];
+
     if (status === 'live') {
-        queryStr += ' WHERE da.returned_at IS NULL ';
+        whereClauses.push('da.returned_at IS NULL');
     } else if (status === 'history') {
-        queryStr += ' WHERE da.returned_at IS NOT NULL ';
+        whereClauses.push('da.returned_at IS NOT NULL');
+    }
+
+    if (req.user.role === 'yard_admin') {
+        queryParams.push(req.user.id);
+        whereClauses.push(`yl.yard_id IN (SELECT yard_id FROM user_yard_assignments WHERE user_id = $${queryParams.length})`);
+    }
+
+    if (whereClauses.length > 0) {
+        queryStr += ' WHERE ' + whereClauses.join(' AND ');
     }
 
     queryStr += ' ORDER BY da.issued_at DESC ';
 
-    const sessions = await db.query(queryStr);
+    const sessions = await db.query(queryStr, queryParams);
     
     // Map data for frontend
     const mappedSessions = sessions.rows.map(s => {

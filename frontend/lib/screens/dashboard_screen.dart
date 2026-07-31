@@ -476,7 +476,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (liveSessions.isEmpty) {
         return const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-            child: Text('No active sessions right now.', style: TextStyle(color: Colors.white54)),
+            child: Text('No active sessions right now.', style: TextStyle(color: AppTheme.subtitleColor)),
         );
     }
 

@@ -66,5 +66,6 @@ CREATE TABLE IF NOT EXISTS alerts_logs (
     alert_type VARCHAR(50) NOT NULL,
     message TEXT NOT NULL,
     severity VARCHAR(50) NOT NULL,
+    yard_id UUID REFERENCES yards(id) ON DELETE CASCADE,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

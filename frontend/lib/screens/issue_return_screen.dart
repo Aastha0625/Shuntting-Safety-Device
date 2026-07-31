@@ -146,7 +146,7 @@ class _IssueReturnScreenState extends State<IssueReturnScreen> {
                     value: selectedUserId,
                     hint: const Text('Select an employee'),
                     items: _locoPilots.map((u) {
-                      return DropdownMenuItem<String>(value: u['id'].toString(), child: Text("${u['full_name']} (${u['employee_id']})"));
+                      return DropdownMenuItem<String>(value: u['id'].toString(), child: Text("${u['fullName'] ?? u['full_name']} (${u['employeeId'] ?? u['employee_id']})"));
                     }).toList(),
                     onChanged: (val) {
                       setTabState(() => selectedUserId = val);

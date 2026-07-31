@@ -27,7 +27,18 @@ const registerDevice = async (req, res) => {
 // @access  Private
 const getDevices = async (req, res) => {
   try {
-    const devices = await db.query('SELECT * FROM devices ORDER BY created_at DESC');
+    let devices;
+    if (req.user.role === 'yard_admin') {
+      devices = await db.query(`
+        SELECT d.* FROM devices d
+        LEFT JOIN yard_lines yl ON d.assigned_line_id = yl.id
+        LEFT JOIN user_yard_assignments uya ON yl.yard_id = uya.yard_id AND uya.user_id = $1
+        WHERE d.assigned_line_id IS NULL OR uya.yard_id IS NOT NULL
+        ORDER BY d.created_at DESC
+      `, [req.user.id]);
+    } else {
+      devices = await db.query('SELECT * FROM devices ORDER BY created_at DESC');
+    }
     res.json(devices.rows);
   } catch (error) {
     console.error('Error in getDevices:', error);

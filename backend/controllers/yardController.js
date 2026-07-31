@@ -27,13 +27,34 @@ const createYard = async (req, res) => {
 // @access  Super Admin / Yard Admin (filtered)
 const getYards = async (req, res) => {
   try {
-    const yards = await db.query('SELECT * FROM yards ORDER BY created_at DESC');
-    const lines = await db.query(`
+    let yards;
+    let lines;
+
+    if (req.user.role === 'yard_admin') {
+      yards = await db.query(`
+        SELECT y.* FROM yards y
+        JOIN user_yard_assignments uya ON y.id = uya.yard_id
+        WHERE uya.user_id = $1
+        ORDER BY y.created_at DESC
+      `, [req.user.id]);
+      
+      lines = await db.query(`
         SELECT yl.*, d.device_code as assigned_de 
         FROM yard_lines yl 
         LEFT JOIN devices d ON d.assigned_line_id = yl.id
+        JOIN user_yard_assignments uya ON yl.yard_id = uya.yard_id
+        WHERE uya.user_id = $1
         ORDER BY yl.created_at DESC
-    `);
+      `, [req.user.id]);
+    } else {
+      yards = await db.query('SELECT * FROM yards ORDER BY created_at DESC');
+      lines = await db.query(`
+          SELECT yl.*, d.device_code as assigned_de 
+          FROM yard_lines yl 
+          LEFT JOIN devices d ON d.assigned_line_id = yl.id
+          ORDER BY yl.created_at DESC
+      `);
+    }
     
     // Group lines by yard
     const mappedYards = yards.rows.map(y => {

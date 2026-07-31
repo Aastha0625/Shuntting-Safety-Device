@@ -30,9 +30,9 @@ router.post('/login', authController.login);
 router.get('/me', verifyToken, authController.getMe);
 
 // @route   GET /api/auth/users
-// @desc    List all users (for user management)
-// @access  Private (Super Admin only)
-router.get('/users', verifyToken, requireRole('super_admin'), authController.listUsers);
+// @desc    List all users (for user management & assigning devices)
+// @access  Private (Super Admin & Yard Admin)
+router.get('/users', verifyToken, requireRole('super_admin', 'yard_admin'), authController.listUsers);
 
 // @route   PUT /api/auth/users/:id/toggle-active
 // @desc    Activate or deactivate a user

@@ -8,35 +8,66 @@ const getDashboardSummary = async (req, res) => {
     const userId = req.user.id;
     const role = req.user.role;
 
-    // 1. Base query conditionals based on role
-    // For Yard Admin, we ideally filter devices/sessions by their assigned yards.
-    // For MVP, we'll demonstrate the aggregation logic globally, 
-    // and just simulate the Yard Admin filter if they have assigned yards.
-    
+    let deviceJoin = '';
+    let sessionJoin = '';
+    let alertJoin = '';
+    let whereClause = '';
+    let params = [];
+    let alertParams = [];
+
+    if (role === 'yard_admin') {
+      deviceJoin = `
+        LEFT JOIN yard_lines yl ON devices.assigned_line_id = yl.id
+        LEFT JOIN user_yard_assignments uya ON yl.yard_id = uya.yard_id AND uya.user_id = $1
+      `;
+      whereClause = ' AND (devices.assigned_line_id IS NULL OR uya.yard_id IS NOT NULL)';
+      
+      sessionJoin = `
+        LEFT JOIN yard_lines yl ON d.assigned_line_id = yl.id
+        JOIN user_yard_assignments uya ON yl.yard_id = uya.yard_id AND uya.user_id = $1
+      `;
+      
+      alertJoin = `
+        JOIN user_yard_assignments uya ON alerts_logs.yard_id = uya.yard_id AND uya.user_id = $1
+      `;
+      
+      params.push(userId);
+      alertParams.push(userId);
+    }
+
     // Total Active Devices
-    const activeRes = await db.query("SELECT COUNT(*) FROM devices WHERE network_status = 'Online'");
+    const activeRes = await db.query(`SELECT COUNT(*) FROM devices ${deviceJoin} WHERE network_status = 'Online' ${whereClause}`, params);
     const activeDevices = parseInt(activeRes.rows[0].count, 10);
 
     // Total Offline Devices
-    const offlineRes = await db.query("SELECT COUNT(*) FROM devices WHERE network_status != 'Online'");
+    const offlineRes = await db.query(`SELECT COUNT(*) FROM devices ${deviceJoin} WHERE network_status != 'Online' ${whereClause}`, params);
     const offlineDevices = parseInt(offlineRes.rows[0].count, 10);
 
     // Total Sessions Today (simplistic check)
-    const sessionsRes = await db.query("SELECT COUNT(*) FROM device_assignments WHERE DATE(issued_at) = CURRENT_DATE");
+    const sessionsRes = await db.query(`
+      SELECT COUNT(*) FROM device_assignments da
+      JOIN devices d ON da.device_id = d.id
+      ${sessionJoin}
+      WHERE DATE(da.issued_at) = CURRENT_DATE
+    `, params);
     const totalSessionsToday = parseInt(sessionsRes.rows[0].count, 10);
 
     // System Status
     // Determine overall health based on critical alerts in the last 24 hours
-    const recentAlertsRes = await db.query(
-        "SELECT COUNT(*) FROM alerts_logs WHERE severity = 'CRITICAL' AND timestamp >= NOW() - INTERVAL '24 HOURS'"
-    );
+    const recentAlertsRes = await db.query(`
+        SELECT COUNT(*) FROM alerts_logs 
+        ${alertJoin}
+        WHERE severity = 'CRITICAL' AND timestamp >= NOW() - INTERVAL '24 HOURS'
+    `, alertParams);
     const criticalCount = parseInt(recentAlertsRes.rows[0].count, 10);
     const systemStatus = criticalCount > 0 ? (criticalCount > 5 ? 'Warning' : '98%') : '100%';
 
     // Latest Critical Alert
-    const alertRes = await db.query(
-        "SELECT * FROM alerts_logs WHERE severity = 'CRITICAL' ORDER BY timestamp DESC LIMIT 1"
-    );
+    const alertRes = await db.query(`
+        SELECT alerts_logs.* FROM alerts_logs 
+        ${alertJoin}
+        WHERE severity = 'CRITICAL' ORDER BY timestamp DESC LIMIT 1
+    `, alertParams);
     let criticalAlert = alertRes.rows.length > 0 ? alertRes.rows[0] : null;
 
     // --- MOCK IoT DATA INJECTION ---
@@ -52,7 +83,7 @@ const getDashboardSummary = async (req, res) => {
 
     // Live Sessions
     // Fetch currently active device assignments with mock distance formatting
-    const liveSessionsRes = await db.query(`
+    const liveSessionsQuery = `
         SELECT 
             da.id, 
             d.device_code as ld_device, 
@@ -64,10 +95,12 @@ const getDashboardSummary = async (req, res) => {
         JOIN devices d ON da.device_id = d.id
         LEFT JOIN yard_lines yl ON d.assigned_line_id = yl.id
         LEFT JOIN yards y ON yl.yard_id = y.id
+        ${role === 'yard_admin' ? 'JOIN user_yard_assignments uya ON yl.yard_id = uya.yard_id AND uya.user_id = $1' : ''}
         WHERE da.returned_at IS NULL
         ORDER BY da.issued_at DESC
         LIMIT 5
-    `);
+    `;
+    const liveSessionsRes = await db.query(liveSessionsQuery, params);
     
     // Map live sessions to the frontend UI format
     const liveSessions = liveSessionsRes.rows.map(session => {
