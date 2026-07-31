@@ -241,22 +241,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Change Password coming soon')));
-                },
-                icon: const Icon(Icons.lock_reset, color: AppTheme.primaryColor),
-                label: const Text('CHANGE PASSWORD', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  side: const BorderSide(color: AppTheme.primaryColor),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
+
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(

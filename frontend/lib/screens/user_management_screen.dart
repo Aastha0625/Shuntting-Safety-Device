@@ -34,7 +34,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     setState(() {
       _isLoading = false;
       if (usersResult['success']) {
-        _users = List<Map<String, dynamic>>.from(usersResult['data']['users'] ?? []);
+        _users = List<Map<String, dynamic>>.from(usersResult['data'] ?? []);
       } else {
         _errorMessage = usersResult['message'];
       }
