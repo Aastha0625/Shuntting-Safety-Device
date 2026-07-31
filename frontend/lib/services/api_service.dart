@@ -4,7 +4,8 @@ import 'user_session.dart';
 
 class ApiService {
   // Use 10.0.2.2 for Android emulator to access local host, or localhost for web/desktop
-  static const String baseUrl = 'http://localhost:5000/api';
+  // Use the PC's local IP address instead of localhost for physical device testing
+  static const String baseUrl = 'http://192.168.29.3:5000/api';
 
   /// Get auth headers with Bearer token
   static Map<String, String> _authHeaders() {
